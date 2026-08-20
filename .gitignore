@@ -108,6 +108,9 @@ TODO.md
 # No trailing slash: in worktrees these are symlinks, which a dir-only pattern misses.
 .agents
 .claude/
+.codegraph/
+.cursor/
+.zcode/
 
 docs/pr_context/
 .astack/
