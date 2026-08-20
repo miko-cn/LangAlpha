@@ -27,6 +27,14 @@ uv run pytest -m regression           # locks live market-data behavior — need
 cd web && pnpm test                   # Vitest;  pnpm test:e2e = Playwright;  pnpm typecheck = tsc --noEmit
 ```
 
+## Codegraph
+
+This repo has a `.codegraph/` index — use it instead of a grep/read loop for structural questions.
+
+- `codegraph_explore` (MCP) / `codegraph explore <query>` (CLI) answers "how does X work", "how does X reach Y", or surveys an area in one call: relevant symbols' verbatim, line-numbered source grouped by file, the call paths between them (dynamic-dispatch hops included), and a blast-radius summary. Treat the returned source as already read.
+- `codegraph node <name>` shows one symbol's source + caller/callee trail (or a file with line numbers + dependents); `codegraph query <search>` finds symbols.
+- Trust the index — don't re-verify with grep; check the staleness banner after edits. Any project with its own `.codegraph/` can be queried via `projectPath`; a path without an index just means use the built-in tools.
+
 ## Architecture
 
 ### Backend (`src/`)
@@ -40,6 +48,17 @@ cd web && pnpm test                   # Vitest;  pnpm test:e2e = Playwright;  pn
 | `src/data_client/` | Financial data protocol abstraction |
 | `src/utils/` | Redis cache, shared utilities |
 | `libs/ptc-cli/` | Standalone interactive CLI for the PTC agent (pkg `langalpha-cli`, cmd `ptc-agent`) |
+
+### Stock & market data sources (the layer you'll most likely touch)
+
+Adding or maintaining a data source spans four layers; know which one your change targets:
+
+1. **Config** — `config.yaml`: `market_data.providers` is an *ordered* fallback chain with per-capability market slots (`markets`, `intraday_markets`, `daily_markets`, `snapshot_markets`; a provider name may appear twice to hold different chain positions per capability). `news_data.providers` is a plain ordered fallback. Current tiers (ginlix-data → FMP → yfinance, plus tickertick for news) are documented in README § "Data Provider Fallback Chain".
+2. **Protocol layer** — `src/data_client/base.py`: `MarketDataSource` (`get_intraday` / `get_daily` / `get_snapshots` / `get_market_status`), `NewsDataSource`, `FinancialDataSource`. Bar shape is `{time, open, high, low, close, volume}` with `time` in **Unix ms**; return `FetchResult` to signal truncation. Implementations live in `src/data_client/<provider>/` (`fmp/`, `yfinance/`, `ginlix_data/`, `tickertick/`).
+3. **Registry** — `src/data_client/registry.py`: register the config name → `(availability_check, async_constructor)` in `_SOURCE_REGISTRY` / `_NEWS_SOURCE_REGISTRY`; availability gates on env keys (`FMP_API_KEY`, `GINLIX_DATA_URL`, yfinance importable; tickertick is keyless).
+4. **Chain** — `src/data_client/market_data_provider.py`: `MarketDataProvider` (chain-of-responsibility, market-region routing, fallback on failure/empty) + `ProviderEntry`. The `get_*_from()` methods fetch from one **named** source with no fallback — that's the pinned-series invariant.
+
+The agent-facing surface sits **above** this layer: builtin MCP servers in `mcp_servers/*_mcp_server.py` (price_data, fundamentals, macro, options, yf_*) and direct tools in `src/tools/market_data/tool.py`. Their docstrings ship into agent prompts and are snapshot-locked (see Conventions). Real-time quotes flow through `src/server/services/market_data_feed.py` (WebSocket to `GINLIX_DATA_WS_URL`, refcounted subscriptions, exponential backoff).
 
 ### Frontend (`web/src/`)
 
