@@ -16,6 +16,8 @@ export interface LiveBarsMeta {
   watermark?: number | null;
   marketPhase?: string | null;
   nextChangeAt?: number | null;
+  publisher?: string;
+  fetchedAt?: number | null;
 }
 
 export interface UseLiveBarsOptions {
@@ -129,6 +131,8 @@ export function useLiveBars(
       currency: meta.currency,
       displayDecimals: meta.displayDecimals,
       watermark: meta.watermark,
+      publisher: meta.publisher,
+      fetchedAt: meta.fetchedAt,
     });
     if (meta.marketPhase) onPhaseRef.current?.(meta.marketPhase);
     if (meta.nextChangeAt != null) {
@@ -180,6 +184,8 @@ export function useLiveBars(
             currency: delta.meta.currency,
             displayDecimals: delta.meta.displayDecimals,
             watermark: delta.meta.watermark,
+            publisher: delta.meta.publisher,
+            fetchedAt: delta.meta.fetchedAt,
           });
         }
         if (delta.meta.marketPhase) onPhaseRef.current?.(delta.meta.marketPhase);

@@ -157,5 +157,7 @@ export function headerToMeta(
     displayDecimals: typeof header?.display_decimals === 'number' ? header.display_decimals : undefined,
     revision: typeof header?.revision === 'number' ? header.revision : undefined,
     cached: cache?.cached,
+    publisher: (header?.publisher as string) || undefined,
+    fetchedAt: coerceWatermark(header?.fetched_at),
   };
 }

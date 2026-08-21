@@ -1713,6 +1713,7 @@ const MarketChart = React.memo(forwardRef<MarketChartHandle, MarketChartProps>((
           // Surface loader metadata: seed the delta-poll watermark + currency
           // through the shared controller (watermark) and the currency hook.
           seedMeta(result?.meta);
+          if (typeof onStockMeta === 'function') onStockMeta(result?.meta ?? null);
 
           updateSeriesData(data);
 

@@ -144,4 +144,8 @@ export interface LoaderMeta {
   currency?: string;
   displayDecimals?: number;
   revision?: number;
+  /** Upstream provider that filled this series (e.g. "futu", "tencent"). */
+  publisher?: string;
+  /** Epoch ms when the upstream response was captured server-side. */
+  fetchedAt?: number | null;
 }

@@ -25,6 +25,24 @@ describe('StockHeader source tooltip', () => {
     expect(screen.getByText('Source: FMP')).toBeInTheDocument();
   });
 
+  it('labels the A-share/HK providers from our multi-tier chain', () => {
+    render(<StockHeader {...baseProps} snapshot={snap('futu')} />);
+    expect(screen.getByText('Source: Futu')).toBeInTheDocument();
+  });
+
+  it('falls back to the chart-series publisher when the snapshot has no source', () => {
+    render(
+      <StockHeader
+        {...baseProps}
+        snapshot={snap(null)}
+        chartMeta={{ publisher: 'tencent', fetchedAt: 1787326927929 } as unknown as Record<string, unknown>}
+      />,
+    );
+    expect(screen.getByText('Source: Tencent')).toBeInTheDocument();
+    // The server-side collection time surfaces in the tooltip.
+    expect(screen.getByText(/Collected:/)).toBeInTheDocument();
+  });
+
   it('shows the WS feed provider when live', () => {
     render(
       <StockHeader

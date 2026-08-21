@@ -47,7 +47,15 @@ interface StockHeaderProps {
 }
 
 const EXCHANGE_LABELS: Record<string, string> = { HK: 'HK', SS: 'SH', SZ: 'SZ', L: 'LON', T: 'TYO', TO: 'TSX', AX: 'ASX' };
-const PROVIDER_LABELS: Record<string, string> = { 'ginlix-data': 'Ginlix Data', fmp: 'FMP', yfinance: 'yfinance' };
+const PROVIDER_LABELS: Record<string, string> = {
+  'ginlix-data': 'Ginlix Data',
+  fmp: 'FMP',
+  yfinance: 'yfinance',
+  futu: 'Futu',
+  tushare: 'Tushare',
+  tencent: 'Tencent',
+  sina: 'Sina',
+};
 
 function getVenueStatusLabel(sym: string | null | undefined, status: 'Delayed' | 'Closed'): string {
   if (!sym) return status;
@@ -57,7 +65,7 @@ function getVenueStatusLabel(sym: string | null | undefined, status: 'Delayed' |
   return EXCHANGE_LABELS[suffix] ? `${EXCHANGE_LABELS[suffix]} ${status}` : status;
 }
 
-const StockHeader = ({ symbol, stockInfo, realTimePrice, chartMeta: _chartMeta, displayOverride, onToggleOverview, onOpenWatchlist, wsStatus, wsHasData = false, wsDataLevel = null, ginlixDataEnabled: _ginlixDataEnabled = true, quoteData, marketStatus, snapshot, marketPhase = null }: StockHeaderProps) => {
+const StockHeader = ({ symbol, stockInfo, realTimePrice, chartMeta, displayOverride, onToggleOverview, onOpenWatchlist, wsStatus, wsHasData = false, wsDataLevel = null, ginlixDataEnabled: _ginlixDataEnabled = true, quoteData, marketStatus, snapshot, marketPhase = null }: StockHeaderProps) => {
   const formatNumber = (num: number | null | undefined): string => {
     if (num == null || (num !== 0 && !num)) return '—';
     if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
@@ -112,9 +120,12 @@ const StockHeader = ({ symbol, stockInfo, realTimePrice, chartMeta: _chartMeta, 
 
   // The provider actually serving the displayed price: the WS feed when live
   // (ginlix-data is the only WS upstream), else whichever provider filled the
-  // snapshot. Fall back to the enabled-provider list for rows without a source.
+  // snapshot. Fall back to the chart series publisher (from the bars header)
+  // then the enabled-provider list for rows without a source.
   const providers = (marketStatus?.providers ?? []) as string[];
-  const activeSource = isLive ? 'ginlix-data' : (snapshot?.source ?? null);
+  const chartPublisher = (chartMeta as Record<string, unknown> | null)?.publisher as string | undefined;
+  const chartFetchedAt = (chartMeta as Record<string, unknown> | null)?.fetchedAt as number | null | undefined;
+  const activeSource = isLive ? 'ginlix-data' : (snapshot?.source ?? chartPublisher ?? null);
   const dataSourceLabel = activeSource
     ? (PROVIDER_LABELS[activeSource] ?? activeSource)
     : (providers.map(p => PROVIDER_LABELS[p] ?? p).join(', ') || 'REST');
@@ -168,6 +179,9 @@ const StockHeader = ({ symbol, stockInfo, realTimePrice, chartMeta: _chartMeta, 
               )}
               <span className="data-source-tooltip">
                 <span>Source: {dataSourceLabel}</span>
+                {chartFetchedAt != null && (
+                  <span>Collected: {new Date(chartFetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                )}
                 <span>WebSocket: {wsStatus === 'connected' ? (wsHasData ? `Connected (${wsDataLevel === 'second' ? 'second' : 'minute'}-level)` : 'Connected (no data)') : wsStatus === 'disabled' ? 'Not available' : wsStatus === 'reconnecting' ? 'Reconnecting' : 'Disconnected'}</span>
               </span>
             </span>
