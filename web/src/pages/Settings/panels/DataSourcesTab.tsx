@@ -48,41 +48,52 @@ function ProviderCard({ source }: { source: DataSourceStatus }) {
 
   return (
     <div
-      className="rounded-md px-4 py-3"
+      className="p-4 rounded-lg"
       style={{
         backgroundColor: 'var(--color-bg-card)',
         border: '1px solid var(--color-border-muted)',
       }}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <span
-            className="text-sm font-medium"
-            style={{ color: 'var(--color-text-primary)' }}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className="text-sm font-medium"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              {source.name}
+            </span>
+            {source.available ? (
+              <span
+                className="inline-flex items-center gap-1 text-xs"
+                style={{ color: 'var(--color-profit)' }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {t('settings.dataSources.available')}
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 text-xs"
+                style={{ color: 'var(--color-loss)' }}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                {t('settings.dataSources.unavailable')}
+              </span>
+            )}
+          </div>
+          <p
+            className="text-sm leading-relaxed"
+            style={{ color: 'var(--color-text-secondary)' }}
           >
-            {source.name}
-          </span>
-          {source.available ? (
-            <span
-              className="inline-flex items-center gap-1 text-xs"
-              style={{ color: 'var(--color-profit)' }}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {t('settings.dataSources.available')}
+            {t('settings.dataSources.markets')}:{' '}
+            <span style={{ color: 'var(--color-text-primary)' }}>
+              {formatMarkets(source.markets)}
             </span>
-          ) : (
-            <span
-              className="inline-flex items-center gap-1 text-xs"
-              style={{ color: 'var(--color-loss)' }}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              {t('settings.dataSources.unavailable')}
-            </span>
-          )}
+          </p>
         </div>
         {source.rate_limit && (
           <span
-            className="text-xs tabular-nums shrink-0"
+            className="shrink-0 text-xs tabular-nums"
             style={{ color: 'var(--color-text-tertiary)' }}
           >
             {source.rate_limit.rate_per_sec.toFixed(1)} / s ·{' '}
@@ -91,17 +102,8 @@ function ProviderCard({ source }: { source: DataSourceStatus }) {
         )}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        <span style={{ color: 'var(--color-text-tertiary)' }}>
-          {t('settings.dataSources.markets')}:{' '}
-          <span style={{ color: 'var(--color-text-secondary)' }}>
-            {formatMarkets(source.markets)}
-          </span>
-        </span>
-      </div>
-
       {caps.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
           {caps.map((c) => (
             <span
               key={c.label}
@@ -126,32 +128,33 @@ export function DataSourcesTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 py-8 justify-center">
-        <Loader2
-          className="h-4 w-4 animate-spin"
+      <div className="space-y-5 max-w-2xl">
+        <p
+          className="text-sm leading-relaxed"
           style={{ color: 'var(--color-text-tertiary)' }}
-        />
-        <span className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
+        >
           {t('common.loading')}
-        </span>
+        </p>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div
-        className="rounded-md px-4 py-4"
-        style={{
-          backgroundColor: 'var(--color-loss-soft)',
-          border: '1px solid var(--color-border-loss)',
-        }}
-      >
-        <p className="text-sm" style={{ color: 'var(--color-loss)' }}>
-          {t('settings.dataSources.loadFailed', {
-            detail: (error as Error)?.message ?? '',
-          })}
-        </p>
+      <div className="space-y-5 max-w-2xl">
+        <div
+          className="p-3 rounded-md"
+          style={{
+            backgroundColor: 'var(--color-loss-soft)',
+            border: '1px solid var(--color-border-loss)',
+          }}
+        >
+          <p className="text-sm" style={{ color: 'var(--color-loss)' }}>
+            {t('settings.dataSources.loadFailed', {
+              detail: (error as Error)?.message ?? '',
+            })}
+          </p>
+        </div>
       </div>
     );
   }
@@ -159,25 +162,24 @@ export function DataSourcesTab() {
   if (!data) return null;
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <div>
-          <p
-            className="text-sm font-medium"
-            style={{ color: 'var(--color-text-primary)' }}
-          >
-            {t('settings.dataSources.title')}
-          </p>
-          <p
-            className="text-xs mt-0.5"
-            style={{ color: 'var(--color-text-tertiary)' }}
-          >
-            {t('settings.dataSources.subtitle', {
-              available: data.available,
-              total: data.total,
-            })}
-          </p>
-        </div>
+    <div className="space-y-5 max-w-2xl">
+      <p
+        className="text-sm leading-relaxed"
+        style={{ color: 'var(--color-text-tertiary)' }}
+      >
+        {t('settings.dataSources.subtitle', {
+          available: data.available,
+          total: data.total,
+        })}
+      </p>
+
+      <div className="space-y-3">
+        {data.sources.map((source) => (
+          <ProviderCard key={source.name} source={source} />
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={() => refetch()}
@@ -185,24 +187,22 @@ export function DataSourcesTab() {
           className="text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
           style={{ color: 'var(--color-accent-primary)' }}
         >
-          {isFetching
-            ? t('settings.dataSources.refreshing')
-            : t('settings.dataSources.refresh')}
+          {isFetching ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {t('settings.dataSources.refreshing')}
+            </span>
+          ) : (
+            t('settings.dataSources.refresh')
+          )}
         </button>
+        <p
+          className="text-xs"
+          style={{ color: 'var(--color-text-tertiary)' }}
+        >
+          {t('settings.dataSources.chainHint')}
+        </p>
       </div>
-
-      <div className="space-y-2">
-        {data.sources.map((source) => (
-          <ProviderCard key={source.name} source={source} />
-        ))}
-      </div>
-
-      <p
-        className="text-xs"
-        style={{ color: 'var(--color-text-tertiary)' }}
-      >
-        {t('settings.dataSources.chainHint')}
-      </p>
     </div>
   );
 }
