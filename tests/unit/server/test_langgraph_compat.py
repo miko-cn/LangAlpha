@@ -6,18 +6,23 @@ only assigned on the path that actually schedules a checkpoint write.
 First tick on a checked graph hits AttributeError.
 
 Patch: ``install_langgraph_compat()`` swaps ``__init__`` so every new
-``AsyncPregelLoop`` instance has the attribute initialised to ``None``
-before super().__init__ runs. ``await None`` returns immediately, so
-the bug-triggering tick is a no-op rather than a crash.
+``AsyncPregelLoop`` instance has the attribute initialised to a completed
+awaitable — ``await`` on it returns immediately and ``.result()`` returns
+``None``, so the bug-triggering tick is a no-op rather than a crash.
 """
 
 from __future__ import annotations
 
+import asyncio
+import dis
 from unittest import mock
 
 from langgraph.pregel._loop import AsyncPregelLoop
 
-from src.server._langgraph_compat import install_langgraph_compat
+from src.server._langgraph_compat import (
+    _CompletedAwaitable,
+    install_langgraph_compat,
+)
 
 
 def test_install_overrides_init() -> None:
@@ -31,10 +36,8 @@ def test_install_overrides_init() -> None:
 def test_install_is_idempotent() -> None:
     """Re-installing must not stack wrappers — the second call is a no-op."""
     install_langgraph_compat()
-    qualname_after_first = AsyncPregelLoop.__init__.__qualname__
-
-    # Spy on the wrapper so we can detect double-wrap.
     wrapper_after_first = AsyncPregelLoop.__init__
+
     with mock.patch.object(
         AsyncPregelLoop,
         "__init__",
@@ -45,60 +48,51 @@ def test_install_is_idempotent() -> None:
 
     # Same object identity — no replacement happened.
     assert AsyncPregelLoop.__init__ is wrapper_after_first
-    assert AsyncPregelLoop.__init__.__qualname__ == qualname_after_first
 
 
 def test_init_sets_attribute_before_super() -> None:
-    """``_put_checkpoint_fut`` must exist by the time ``super().__init__``
-    runs — the bug is the AttributeError on read, so the attribute has to
-    be set as the first thing in the wrapper."""
+    """The wrapper sets the attribute as its very first statement, before
+    the original ``__init__`` can run."""
     install_langgraph_compat()
     wrapper = AsyncPregelLoop.__init__
 
-    # The wrapper sets ``self._put_checkpoint_fut = None`` as its first
-    # statement, BEFORE calling the original ``__init__``. Verify by
-    # wrapping the original to inspect ``self`` after the assignment but
-    # before ``original_init`` would have a chance to overwrite it.
-    captured: dict[str, object] = {}
+    # Disassemble the wrapper: its first STORE_ATTR must write
+    # ``_put_checkpoint_fut`` (the completed awaitable).
+    stores = [
+        instr.argval
+        for instr in dis.Bytecode(wrapper)
+        if instr.opname == "STORE_ATTR"
+    ]
+    assert stores[0] == "_put_checkpoint_fut"
 
-    # Call the wrapper on a dummy object so the first statement (the
-    # ``self._put_checkpoint_fut = None`` line) executes, then short-
-    # circuit before the original __init__ does its full setup.
-    class _Stub:
-        pass
 
-    with mock.patch.object(
-        AsyncPregelLoop, "__init__", lambda self, *a, **k: None
-    ) as replacement:
-        # Replace again so the inner call short-circuits — but the wrapper
-        # still ran its first line on _Stub (the actual wrapper is bound
-        # to AsyncPregelLoop.__init__ at install time).
-        captured["fut_attr"] = "unset"
-        try:
-            wrapper(_Stub())
-        except TypeError:
-            # Wrapper invoked its body; check that _Stub received the attr.
-            pass
+def test_completed_awaitable_is_awaitable_and_results() -> None:
+    """``_CompletedAwaitable`` must be a legal stand-in Future."""
+    sentinel = _CompletedAwaitable()
 
-    assert getattr(_Stub(), "_put_checkpoint_fut", "MISSING") is None or True
-    # Stronger assertion: directly probe the wrapper's bytecode. The first
-    # statement should be ``self._put_checkpoint_fut = None``.
-    import dis
-    bytecode = dis.Bytecode(wrapper)
-    first_load = next(
-        (
-            instr
-            for instr in bytecode
-            if instr.opname == "STORE_ATTR"
-        ),
-        None,
-    )
-    assert first_load is not None
-    assert first_load.argval == "_put_checkpoint_fut"
+    async def consume() -> object:
+        # await must return immediately and yield None.
+        return await sentinel
+
+    assert asyncio.run(consume()) is None
+    # .result() path (the sync branch in pregel/main.py:2988) also works.
+    assert sentinel.result() is None
+
+
+def test_awaitable_used_as_prev_in_put_after_previous() -> None:
+    """``_checkpointer_put_after_previous`` awaits prev only when non-None;
+    a completed awaitable satisfies that contract (await returns at once)."""
+    sentinel = _CompletedAwaitable()
+
+    async def drain(prev) -> None:
+        if prev is not None:
+            await prev
+
+    asyncio.run(drain(sentinel))
+    asyncio.run(drain(None))  # the non-None branch is what the shim feeds
 
 
 def test_original_init_unchanged() -> None:
     """Sanity: the install must not mutate anything else on the class."""
     install_langgraph_compat()
-    # ``__init_subclass__`` and other classmethods untouched
     assert callable(AsyncPregelLoop.__init__)
