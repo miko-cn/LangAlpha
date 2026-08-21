@@ -87,6 +87,14 @@ export const queryKeys = {
     all:  ['marketData'],
     bars: (symbol: string, interval: string) => [...queryKeys.marketData.all, 'bars', symbol, interval],
   },
+  // Configured market-data provider chain — backend status endpoint, used
+  // by the Settings → Data Sources tab. Low-churn, but the chain position
+  // matters for routing, so a prefix key lets us invalidate everything when
+  // a deploy reshuffles it.
+  dataSources: {
+    all:    ['dataSources'],
+    status: () => [...queryKeys.dataSources.all, 'status'],
+  },
   // Per-symbol quote cache — the unified snapshot layer (see lib/quotes/).
   // Key = uppercase legacy symbol spelling (indexes stripped of a leading '^').
   // Interim keying until Phase 4 re-keys on the canonical instrument_key.

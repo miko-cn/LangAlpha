@@ -209,6 +209,18 @@
     "failedToUploadAvatar": "Failed to upload avatar",
     "failedToUpdateUser": "Failed to update user information",
     "failedToResetPreferences": "Failed to reset preferences",
+    "dataSources": {
+      "tabLabel": "Data Sources",
+      "title": "Market data provider chain",
+      "subtitle": "{{available}} of {{total}} providers active. Order follows the chain in config.yaml.",
+      "available": "Active",
+      "unavailable": "Inactive",
+      "markets": "Markets",
+      "loadFailed": "Failed to load data source status: {{detail}}",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "chainHint": "Requests try each provider in order and fall back to the next on failure or empty result. Provider order and capability overrides are configured server-side in config.yaml."
+    },
     "addProvider": "Add Provider",
     "addProviderName": "Provider Name",
     "addProviderNamePlaceholder": "e.g. my-random-provider",
