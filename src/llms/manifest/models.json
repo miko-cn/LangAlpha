@@ -802,6 +802,35 @@
       "enable_thinking": true
     }
   },
+  "minimax-cn-m3": {
+    "model_id": "MiniMax-M3",
+    "provider": "minimax-cn",
+    "display_name": "MiniMax M3 (CN)",
+    "visible": true,
+    "speed": 1,
+    "intelligence": 4,
+    "context": 512000,
+    "parameters": {
+      "max_tokens": 128000
+    },
+    "input_modalities": [
+      "text"
+    ]
+  },
+  "qwen3.8-max": {
+    "model_id": "qwen3.8-max",
+    "provider": "dashscope",
+    "visible": true,
+    "speed": 4,
+    "intelligence": 5,
+    "context": 1000000,
+    "input_modalities": [
+      "text"
+    ],
+    "extra_body": {
+      "enable_thinking": true
+    }
+  },
   "qwen3.7-plus": {
     "model_id": "qwen3.7-plus",
     "provider": "dashscope",
