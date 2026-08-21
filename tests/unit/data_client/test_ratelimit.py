@@ -157,6 +157,23 @@ async def test_request_with_retry_gives_up_after_max() -> None:
 
 
 @pytest.mark.asyncio
+async def test_request_with_retry_default_policy_is_conservative() -> None:
+    """Default policy gives up after 3 total attempts (initial + 2 retries)."""
+    calls = {"n": 0}
+
+    async def always_429() -> None:
+        calls["n"] += 1
+        raise RuntimeError("Futu API request failed (429)")
+
+    init_ratelimit()
+    with pytest.raises(RuntimeError, match="429"):
+        await request_with_retry(
+            "futu", always_429, policy=RetryPolicy(base_delay=0.001)
+        )
+    assert calls["n"] == 3
+
+
+@pytest.mark.asyncio
 async def test_request_with_retry_propagates_non_rate_errors() -> None:
     calls = {"n": 0}
 
