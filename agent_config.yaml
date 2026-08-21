@@ -7,13 +7,11 @@
 
 llm:
   # Model name from src/llms/manifest/models.json
-  name: "claude-opus-4-8"
-  flash: "claude-sonnet-5"
+  name: "minimax-cn-m3"
+  flash: "minimax-cn-m3"
   compaction: "" # blank → same model as flash
   fetch: ""         # blank → same model as flash
-  fallback:
-    - "deepseek-v4-pro"
-    - "glm-5.2"
+  fallback: []
 
 sandbox:
   # Provider selection: "daytona" (cloud) or "docker" (local).

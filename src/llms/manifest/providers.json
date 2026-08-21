@@ -1213,6 +1213,15 @@
         }
       }
     },
+    "minimax-cn": {
+      "sdk": "openai",
+      "base_url": "https://api.minimaxi.com/v1",
+      "env_key": "MINIMAX_CN_API_KEY",
+      "access_type": "api_key",
+      "byok_eligible": true,
+      "display_name": "MiniMax (CN)",
+      "use_response_api": false
+    },
     "openrouter": {
       "sdk": "deepseek",
       "base_url": "https://openrouter.ai/api/v1",
