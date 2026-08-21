@@ -1012,6 +1012,7 @@ from src.server.app.memory import router as memory_router
 from src.server.app.workflows import include_workflow_router
 from src.server.app.mcp_catalog import router as mcp_catalog_router
 from src.server.app.mcp_servers import router as mcp_servers_router
+from src.server.app.status import router as data_sources_router
 
 # Conditionally import ginlix-data WS proxy (only when GINLIX_DATA_WS_URL is set)
 from src.config.settings import GINLIX_DATA_ENABLED
@@ -1106,3 +1107,7 @@ app.include_router(
 app.include_router(
     market_data_ws_router
 )  # /ws/v1/market-data/* - Real-time WS proxy (or just status endpoint when disabled)
+
+app.include_router(
+    data_sources_router
+)  # /api/v1/data-sources/* - Data source health status
