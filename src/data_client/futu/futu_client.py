@@ -87,10 +87,17 @@ class FutuClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
+<<<<<<< HEAD
     async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *args: object) -> None:
+=======
+    async def __aenter__(self) -> "FutuClient":
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+>>>>>>> f674f160 (feat(data_client): Futu OpenAPI market data source (API-Key auth, no gateway))
         await self.close()
 
     def _headers(self, method: str, path: str, query: str, body: bytes) -> dict[str, str]:
@@ -108,6 +115,7 @@ class FutuClient:
             "Authorization": sig,
         }
 
+<<<<<<< HEAD
     async def _request(
         self,
         method: str,
@@ -124,10 +132,15 @@ class FutuClient:
         """
         from src.data_client._ratelimit import request_with_retry
 
+=======
+    async def _request(self, method: str, path: str, query: str = "",
+                       body: bytes = b"", content_type: str | None = None) -> dict:
+>>>>>>> f674f160 (feat(data_client): Futu OpenAPI market data source (API-Key auth, no gateway))
         url = f"{API_BASE}{path}" + (f"?{query}" if query else "")
         headers = self._headers(method, path, query, body)
         if content_type:
             headers["Content-Type"] = content_type
+<<<<<<< HEAD
 
         async def _do() -> dict:
             client = await self._get_client()
@@ -151,6 +164,27 @@ class FutuClient:
             return data
 
         return await request_with_retry("futu", _do)
+=======
+        client = await self._get_client()
+        try:
+            resp = await client.request(method, url, content=body or None, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+        except httpx.HTTPStatusError as e:
+            raise FutuRequestError(
+                f"Futu API request failed ({e.response.status_code})",
+                status_code=e.response.status_code,
+            )
+        except httpx.TimeoutException:
+            raise FutuRequestError("Futu API request timed out")
+        except httpx.RequestError:
+            raise FutuRequestError("Futu API request failed")
+        if isinstance(data, dict) and data.get("ret_code") not in (0, None):
+            raise FutuRequestError(
+                f"Futu API error ret_code={data.get('ret_code')} msg={data.get('ret_msg')}"
+            )
+        return data
+>>>>>>> f674f160 (feat(data_client): Futu OpenAPI market data source (API-Key auth, no gateway))
 
     # ------------------------------------------------------------------ quotes
 
