@@ -75,6 +75,10 @@ if __name__ == "__main__":
     # lifecycle overlap across processes, gen-CAS-bounded last-writer-wins).
     os.environ["LANGALPHA_WORKERS"] = str(args.workers)
 
+    from src.data_client._ratelimit import init_ratelimit
+
+    init_ratelimit()
+
     try:
         logger.info(f"Starting server on {args.host}:{args.port}")
         uvicorn.run(

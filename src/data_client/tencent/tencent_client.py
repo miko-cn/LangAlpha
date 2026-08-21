@@ -58,50 +58,65 @@ class TencentClient:
     async def get_quotes(self, codes: list[str]) -> dict[str, list[str]]:
         """Realtime quote rows keyed by vendor code (``sh600519`` etc.)."""
         client = await self._get_client()
-        try:
-            resp = await client.get(QUOTE_URL + ",".join(codes))
-            resp.raise_for_status()
-            text = resp.content.decode("gbk", errors="ignore")
-        except httpx.HTTPStatusError as e:
-            raise TencentRequestError(f"Tencent quote failed ({e.response.status_code})")
-        except httpx.TimeoutException:
-            raise TencentRequestError("Tencent quote timed out")
-        except httpx.RequestError:
-            raise TencentRequestError("Tencent quote failed")
-        return {m.group(1): m.group(2).split("~") for m in _QUOTE_RE.finditer(text)}
+
+        async def _do() -> dict[str, list[str]]:
+            try:
+                resp = await client.get(QUOTE_URL + ",".join(codes))
+                resp.raise_for_status()
+                text = resp.content.decode("gbk", errors="ignore")
+            except httpx.HTTPStatusError as e:
+                raise TencentRequestError(f"Tencent quote failed ({e.response.status_code})")
+            except httpx.TimeoutException:
+                raise TencentRequestError("Tencent quote timed out")
+            except httpx.RequestError:
+                raise TencentRequestError("Tencent quote failed")
+            return {m.group(1): m.group(2).split("~") for m in _QUOTE_RE.finditer(text)}
+
+        from src.data_client._ratelimit import request_with_retry
+        return await request_with_retry("tencent", _do)
 
     async def get_daily(self, code: str, start: str, end: str, qfq: str = "qfq") -> list[list[Any]]:
         """Daily (前复权) K-line rows: ``[date, open, close, high, low, vol, ...]``."""
         client = await self._get_client()
         params = {"param": f"{code},day,{start},{end},640,{qfq}"}
-        try:
-            resp = await client.get(DAILY_URL, params=params)
-            resp.raise_for_status()
-            data = resp.json()
-        except httpx.HTTPStatusError as e:
-            raise TencentRequestError(f"Tencent daily failed ({e.response.status_code})")
-        except httpx.TimeoutException:
-            raise TencentRequestError("Tencent daily timed out")
-        except (httpx.RequestError, ValueError):
-            raise TencentRequestError("Tencent daily failed")
-        node = (data.get("data") or {}).get(code, {})
-        rows = node.get(f"{qfq}day") or node.get("day") or []
-        return [list(r) for r in rows if isinstance(r, list)]
+
+        async def _do() -> list[list[Any]]:
+            try:
+                resp = await client.get(DAILY_URL, params=params)
+                resp.raise_for_status()
+                data = resp.json()
+            except httpx.HTTPStatusError as e:
+                raise TencentRequestError(f"Tencent daily failed ({e.response.status_code})")
+            except httpx.TimeoutException:
+                raise TencentRequestError("Tencent daily timed out")
+            except (httpx.RequestError, ValueError):
+                raise TencentRequestError("Tencent daily failed")
+            node = (data.get("data") or {}).get(code, {})
+            rows = node.get(f"{qfq}day") or node.get("day") or []
+            return [list(r) for r in rows if isinstance(r, list)]
+
+        from src.data_client._ratelimit import request_with_retry
+        return await request_with_retry("tencent", _do)
 
     async def get_minute(self, code: str, period: str) -> list[list[Any]]:
         """Minute K-line rows: ``[YYYYMMDDHHMM, open, close, high, low, vol, ...]``."""
         client = await self._get_client()
         params = {"param": f"{code},{period},,320"}
-        try:
-            resp = await client.get(MINUTE_URL, params=params)
-            resp.raise_for_status()
-            data = resp.json()
-        except httpx.HTTPStatusError as e:
-            raise TencentRequestError(f"Tencent minute failed ({e.response.status_code})")
-        except httpx.TimeoutException:
-            raise TencentRequestError("Tencent minute timed out")
-        except (httpx.RequestError, ValueError):
-            raise TencentRequestError("Tencent minute failed")
-        node = (data.get("data") or {}).get(code, {})
-        rows = node.get(period) or []
-        return [list(r) for r in rows if isinstance(r, list)]
+
+        async def _do() -> list[list[Any]]:
+            try:
+                resp = await client.get(MINUTE_URL, params=params)
+                resp.raise_for_status()
+                data = resp.json()
+            except httpx.HTTPStatusError as e:
+                raise TencentRequestError(f"Tencent minute failed ({e.response.status_code})")
+            except httpx.TimeoutException:
+                raise TencentRequestError("Tencent minute timed out")
+            except (httpx.RequestError, ValueError):
+                raise TencentRequestError("Tencent minute failed")
+            node = (data.get("data") or {}).get(code, {})
+            rows = node.get(period) or []
+            return [list(r) for r in rows if isinstance(r, list)]
+
+        from src.data_client._ratelimit import request_with_retry
+        return await request_with_retry("tencent", _do)

@@ -61,37 +61,47 @@ class SinaClient:
     async def get_quotes(self, codes: list[str]) -> dict[str, list[str]]:
         """Realtime quote rows keyed by vendor code (``sh600519`` etc.)."""
         client = await self._get_client()
-        try:
-            resp = await client.get(QUOTE_URL + ",".join(codes), headers=_REFERER)
-            resp.raise_for_status()
-            text = resp.content.decode("gbk", errors="ignore")
-        except httpx.HTTPStatusError as e:
-            raise SinaRequestError(f"Sina quote failed ({e.response.status_code})")
-        except httpx.TimeoutException:
-            raise SinaRequestError("Sina quote timed out")
-        except httpx.RequestError:
-            raise SinaRequestError("Sina quote failed")
-        return {m.group(1): m.group(2).split(",") for m in _QUOTE_RE.finditer(text)}
+
+        async def _do() -> dict[str, list[str]]:
+            try:
+                resp = await client.get(QUOTE_URL + ",".join(codes), headers=_REFERER)
+                resp.raise_for_status()
+                text = resp.content.decode("gbk", errors="ignore")
+            except httpx.HTTPStatusError as e:
+                raise SinaRequestError(f"Sina quote failed ({e.response.status_code})")
+            except httpx.TimeoutException:
+                raise SinaRequestError("Sina quote timed out")
+            except httpx.RequestError:
+                raise SinaRequestError("Sina quote failed")
+            return {m.group(1): m.group(2).split(",") for m in _QUOTE_RE.finditer(text)}
+
+        from src.data_client._ratelimit import request_with_retry
+        return await request_with_retry("sina", _do)
 
     async def get_kline(self, symbol: str, scale: int, datalen: int = 320) -> list[dict[str, Any]]:
         """K-line rows ``[{day, open, high, low, close, volume, amount}]`` (A-shares)."""
         client = await self._get_client()
         params = {"symbol": symbol, "scale": scale, "ma": "no", "datalen": datalen}
-        try:
-            resp = await client.get(KLINE_URL, params=params, headers=_REFERER)
-            resp.raise_for_status()
-            text = resp.text
-        except httpx.HTTPStatusError as e:
-            raise SinaRequestError(f"Sina kline failed ({e.response.status_code})")
-        except httpx.TimeoutException:
-            raise SinaRequestError("Sina kline timed out")
-        except httpx.RequestError:
-            raise SinaRequestError("Sina kline failed")
-        m = _JSONP_RE.search(text)
-        if not m:
-            raise SinaRequestError("Sina kline returned an unparseable response")
-        try:
-            data = json.loads(m.group(1))
-        except ValueError:
-            raise SinaRequestError("Sina kline returned invalid JSON")
-        return [d for d in data if isinstance(d, dict)] if isinstance(data, list) else []
+
+        async def _do() -> list[dict[str, Any]]:
+            try:
+                resp = await client.get(KLINE_URL, params=params, headers=_REFERER)
+                resp.raise_for_status()
+                text = resp.text
+            except httpx.HTTPStatusError as e:
+                raise SinaRequestError(f"Sina kline failed ({e.response.status_code})")
+            except httpx.TimeoutException:
+                raise SinaRequestError("Sina kline timed out")
+            except httpx.RequestError:
+                raise SinaRequestError("Sina kline failed")
+            m = _JSONP_RE.search(text)
+            if not m:
+                raise SinaRequestError("Sina kline returned an unparseable response")
+            try:
+                data = json.loads(m.group(1))
+            except ValueError:
+                raise SinaRequestError("Sina kline returned invalid JSON")
+            return [d for d in data if isinstance(d, dict)] if isinstance(data, list) else []
+
+        from src.data_client._ratelimit import request_with_retry
+        return await request_with_retry("sina", _do)

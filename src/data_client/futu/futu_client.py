@@ -108,31 +108,49 @@ class FutuClient:
             "Authorization": sig,
         }
 
-    async def _request(self, method: str, path: str, query: str = "",
-                       body: bytes = b"", content_type: str | None = None) -> dict:
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        query: str = "",
+        body: bytes = b"",
+        content_type: str | None = None,
+    ) -> dict:
+        """Single signed HTTP request, gated by the shared rate-limit bucket.
+
+        The body-part of the signature is the SHA-256 hex of the raw body
+        bytes (or empty when there is no body); a successful response is a
+        JSON object whose ``ret_code`` must be ``0`` for it to be returned.
+        """
+        from src.data_client._ratelimit import request_with_retry
+
         url = f"{API_BASE}{path}" + (f"?{query}" if query else "")
         headers = self._headers(method, path, query, body)
         if content_type:
             headers["Content-Type"] = content_type
-        client = await self._get_client()
-        try:
-            resp = await client.request(method, url, content=body or None, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-        except httpx.HTTPStatusError as e:
-            raise FutuRequestError(
-                f"Futu API request failed ({e.response.status_code})",
-                status_code=e.response.status_code,
-            )
-        except httpx.TimeoutException:
-            raise FutuRequestError("Futu API request timed out")
-        except httpx.RequestError:
-            raise FutuRequestError("Futu API request failed")
-        if isinstance(data, dict) and data.get("ret_code") not in (0, None):
-            raise FutuRequestError(
-                f"Futu API error ret_code={data.get('ret_code')} msg={data.get('ret_msg')}"
-            )
-        return data
+
+        async def _do() -> dict:
+            client = await self._get_client()
+            try:
+                resp = await client.request(method, url, content=body or None, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+            except httpx.HTTPStatusError as e:
+                raise FutuRequestError(
+                    f"Futu API request failed ({e.response.status_code})",
+                    status_code=e.response.status_code,
+                )
+            except httpx.TimeoutException:
+                raise FutuRequestError("Futu API request timed out")
+            except httpx.RequestError:
+                raise FutuRequestError("Futu API request failed")
+            if isinstance(data, dict) and data.get("ret_code") not in (0, None):
+                raise FutuRequestError(
+                    f"Futu API error ret_code={data.get('ret_code')} msg={data.get('ret_msg')}"
+                )
+            return data
+
+        return await request_with_retry("futu", _do)
 
     # ------------------------------------------------------------------ quotes
 
