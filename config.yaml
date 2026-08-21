@@ -225,6 +225,22 @@ market_data:
   providers:
     - name: ginlix-data
       markets: [us]          # US equities only
+    - name: futu
+      # 权威 A 股 + 港股源：日线/分钟线权威。实时快照仅港/美（A 股只有
+      # 延迟行情权限，留给免费源腾讯/新浪负责）。
+      markets: [cn, hk]
+      snapshot_markets: [hk]   # A股实时由腾讯/新浪免Key档覆盖
+    - name: tushare
+      # 官方日线兜底（免费档无分钟线/实时，intraday/snapshot 空 = 跳过）
+      markets: [cn, hk]
+      intraday_markets: []
+      snapshot_markets: []
+    - name: tencent
+      # 免 Key：实时/日线/分钟（A 股），实时+日线（港股；分钟不稳）
+      markets: [cn, hk]
+    - name: sina
+      # 免 Key：实时（A+港股），日线/分钟（A 股；港股 K 线不支持）
+      markets: [cn, hk]
     - name: yfinance
       markets: []                 # priority slot: non-US intraday only —
       intraday_markets: [non-us]  # native session anchors incl. lunch gaps
