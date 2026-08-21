@@ -39,6 +39,16 @@ GINLIX_DATA_WS_URL: str = os.getenv("GINLIX_DATA_WS_URL", "") or (
 )
 GINLIX_DATA_ENABLED: bool = bool(GINLIX_DATA_URL)
 
+# Futu OpenAPI — official REST, "API Key" auth mode (no OpenD gateway).
+FUTU_APP_KEY_ID: str = os.getenv("FUTU_APP_KEY_ID", "")
+FUTU_PRIVATE_KEY_PATH: str = os.getenv("FUTU_PRIVATE_KEY_PATH", "")
+FUTU_SIGN_ALGO: str = os.getenv("FUTU_SIGN_ALGO", "ed25519")
+FUTU_ENABLED: bool = bool(FUTU_APP_KEY_ID and FUTU_PRIVATE_KEY_PATH)
+
+# Tushare — free-tier A-share daily data.
+TUSHARE_TOKEN: str = os.getenv("TUSHARE_TOKEN", "")
+TUSHARE_ENABLED: bool = bool(TUSHARE_TOKEN)
+
 # Public base URL of this server (used in agent-generated URLs like preview links)
 SERVER_BASE_URL: str = os.getenv("SERVER_BASE_URL", "http://localhost:8000")
 

@@ -46,6 +46,10 @@ PUBLISHER_LINEAGE: dict[str, tuple[PriceTreatment, Tier]] = {
     "ginlix-data": (PriceTreatment.SPLIT_ADJUSTED, Tier.REALTIME),
     "fmp": (PriceTreatment.SPLIT_ADJUSTED, Tier.REALTIME),
     "yfinance": (PriceTreatment.SPLIT_ADJUSTED, Tier.DELAYED_15M),
+    "futu": (PriceTreatment.SPLIT_ADJUSTED, Tier.REALTIME),
+    "tushare": (PriceTreatment.SPLIT_ADJUSTED, Tier.DELAYED_15M),
+    "tencent": (PriceTreatment.SPLIT_ADJUSTED, Tier.REALTIME),
+    "sina": (PriceTreatment.SPLIT_ADJUSTED, Tier.REALTIME),
 }
 
 # Conservative default for an unknown/absent publisher (matches the legacy

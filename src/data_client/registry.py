@@ -50,6 +50,26 @@ def _tickertick_available() -> bool:
     return True  # free, keyless API
 
 
+def _futu_available() -> bool:
+    from src.config.env import FUTU_ENABLED
+
+    return FUTU_ENABLED
+
+
+def _tushare_available() -> bool:
+    from src.config.env import TUSHARE_ENABLED
+
+    return TUSHARE_ENABLED
+
+
+def _tencent_available() -> bool:
+    return True  # free, keyless API
+
+
+def _sina_available() -> bool:
+    return True  # free, keyless API (requires Referer header)
+
+
 # ---------------------------------------------------------------------------
 # Async source constructors
 # ---------------------------------------------------------------------------
@@ -101,6 +121,30 @@ async def _build_tickertick_news_source() -> NewsDataSource:
     return TickerTickNewsSource()
 
 
+async def _build_futu_source() -> MarketDataSource:
+    from .futu.data_source import FutuDataSource
+
+    return FutuDataSource()
+
+
+async def _build_tushare_source() -> MarketDataSource:
+    from .tushare.data_source import TushareDataSource
+
+    return TushareDataSource()
+
+
+async def _build_tencent_source() -> MarketDataSource:
+    from .tencent.data_source import TencentDataSource
+
+    return TencentDataSource()
+
+
+async def _build_sina_source() -> MarketDataSource:
+    from .sina.data_source import SinaDataSource
+
+    return SinaDataSource()
+
+
 # ---------------------------------------------------------------------------
 # Source registries — map config name → (availability_check, async_constructor)
 # ---------------------------------------------------------------------------
@@ -109,6 +153,10 @@ _SOURCE_REGISTRY: dict[str, tuple[Any, Any]] = {
     "ginlix-data": (_ginlix_data_available, _build_ginlix_data_source),
     "fmp": (_fmp_available, _build_fmp_source),
     "yfinance": (_yfinance_available, _build_yfinance_source),
+    "futu": (_futu_available, _build_futu_source),
+    "tushare": (_tushare_available, _build_tushare_source),
+    "tencent": (_tencent_available, _build_tencent_source),
+    "sina": (_sina_available, _build_sina_source),
 }
 
 _NEWS_SOURCE_REGISTRY: dict[str, tuple[Any, Any]] = {
