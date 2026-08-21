@@ -45,17 +45,10 @@ class TushareClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
-<<<<<<< HEAD
     async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *args: object) -> None:
-=======
-    async def __aenter__(self) -> "TushareClient":
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
->>>>>>> 1a7f3d62 (feat(data_client): Tushare market data source (free-tier daily))
         await self.close()
 
     async def pro(self, api_name: str, params: dict[str, Any],
@@ -65,8 +58,6 @@ class TushareClient:
             "api_name": api_name, "token": self.token,
             "params": params, "fields": fields,
         }).encode()
-<<<<<<< HEAD
-
         async def _do() -> dict[str, Any]:
             client = await self._get_client()
             try:
@@ -86,23 +77,6 @@ class TushareClient:
 
         from src.data_client._ratelimit import request_with_retry
         return await request_with_retry("tushare", _do)
-=======
-        client = await self._get_client()
-        try:
-            resp = await client.post(API_BASE, content=body,
-                                     headers={"Content-Type": "application/json"})
-            resp.raise_for_status()
-            data = resp.json()
-        except httpx.HTTPStatusError as e:
-            raise TushareRequestError(f"Tushare API request failed ({e.response.status_code})")
-        except httpx.TimeoutException:
-            raise TushareRequestError("Tushare API request timed out")
-        except httpx.RequestError:
-            raise TushareRequestError("Tushare API request failed")
-        if data.get("code") != 0:
-            raise TushareRequestError(f"Tushare error: {data.get('msg')}")
-        return data.get("data") or {}
->>>>>>> 1a7f3d62 (feat(data_client): Tushare market data source (free-tier daily))
 
     async def get_daily(self, ts_code: str, start: str, end: str) -> list[dict[str, Any]]:
         """EOD bars; ``ts_code`` like ``600519.SH``; dates ``YYYYMMDD``."""
