@@ -114,6 +114,7 @@ TODO.md
 
 docs/pr_context/
 .astack/
+.futu/
 
 /deploy.sh
 /deploy/lib/
