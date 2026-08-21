@@ -40,15 +40,19 @@ class _Spec:
     burst: int
 
 
-# Per-source defaults. Free / reverse-engineered sources get the smallest budgets.
+# Per-source defaults. Tuned conservatively — data availability trumps
+# latency, so the smallest budgets win over the largest. Free / reverse-
+# engineered sources (tencent, sina) get the smallest; documented tiers
+# (futu, ginlix-data) are still conservative to leave headroom for shared
+# egress IP bursts.
 _BUCKET_SPECS: dict[str, _Spec] = {
-    "futu":        _Spec(rate_per_sec=10.0, burst=20),
-    "tencent":     _Spec(rate_per_sec=5.0,  burst=10),
-    "sina":        _Spec(rate_per_sec=5.0,  burst=10),
-    "tushare":     _Spec(rate_per_sec=0.83, burst=5),    # ~50 req/min
-    "ginlix-data": _Spec(rate_per_sec=20.0, burst=40),
-    "fmp":         _Spec(rate_per_sec=8.0,  burst=16),
-    "yfinance":    _Spec(rate_per_sec=5.0,  burst=10),
+    "futu":        _Spec(rate_per_sec=3.0,  burst=5),
+    "tencent":     _Spec(rate_per_sec=2.0,  burst=4),
+    "sina":        _Spec(rate_per_sec=2.0,  burst=4),
+    "tushare":     _Spec(rate_per_sec=0.5,  burst=2),    # ~30 req/min, wide margin
+    "ginlix-data": _Spec(rate_per_sec=5.0,  burst=10),
+    "fmp":         _Spec(rate_per_sec=3.0,  burst=6),
+    "yfinance":    _Spec(rate_per_sec=2.0,  burst=4),
 }
 
 
@@ -145,8 +149,15 @@ class _Bucket:
 
 @dataclass
 class RetryPolicy:
-    max_retries: int = 3
-    base_delay: float = 1.0   # seconds, doubled each attempt
+    """429 retry policy — conservative to avoid stacking bursts on top of the
+    upstream throttling we're already throttled by.
+
+    ``max_retries=2`` caps total attempts at 3 (initial + 2 retries). ``base_delay=2.0``
+    gives the upstream room to recover before the first retry; doubling still
+    keeps the total worst-case retry window below 30 seconds.
+    """
+    max_retries: int = 2
+    base_delay: float = 2.0   # seconds, doubled each attempt
     max_delay: float = 30.0
 
 
