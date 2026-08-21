@@ -61,6 +61,16 @@ from src.server.utils.api import find_malformed_route_ids  # TEMP (malformed-id-
 # internally so a broken instrumentor cannot prevent server startup.
 _otel_enabled = init_otel()
 
+# langgraph 1.2.x reads `AsyncPregelLoop._put_checkpoint_fut` unconditionally
+# on every superstep when `durability == "sync"`, but the attribute is only
+# assigned on the path that actually schedules a checkpoint write — every
+# other tick (including the very first one) hits AttributeError and the
+# graph dies. Install the compat shim that initialises the attribute to
+# `None` (which `await` tolerates) before any agent graph is built.
+from src.server._langgraph_compat import install_langgraph_compat
+
+install_langgraph_compat()
+
 logger = logging.getLogger(__name__)
 
 
