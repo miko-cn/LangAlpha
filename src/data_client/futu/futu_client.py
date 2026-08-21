@@ -15,7 +15,7 @@ import json
 import logging
 import secrets
 import time
-from typing import Any
+from typing import Any, Self
 
 import httpx
 from cryptography.hazmat.primitives import hashes, serialization
@@ -87,10 +87,10 @@ class FutuClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
-    async def __aenter__(self) -> "FutuClient":
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *args: object) -> None:
         await self.close()
 
     def _headers(self, method: str, path: str, query: str, body: bytes) -> dict[str, str]:

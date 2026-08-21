@@ -8,10 +8,9 @@ HK reports shares — the data source normalizes that.
 
 from __future__ import annotations
 
-import json
 import logging
 import re
-from typing import Any
+from typing import Any, Self
 
 import httpx
 
@@ -50,10 +49,10 @@ class TencentClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
-    async def __aenter__(self) -> "TencentClient":
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *args: object) -> None:
         await self.close()
 
     async def get_quotes(self, codes: list[str]) -> dict[str, list[str]]:

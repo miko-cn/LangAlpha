@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, Self
 
 import httpx
 
@@ -26,7 +26,7 @@ SCALE_DAILY = 240
 SCALE_MINUTE = {"5min": 5, "15min": 15, "30min": 30, "60min": 60}
 
 _QUOTE_RE = re.compile(r'hq_str_(\w+)="([^"]*)"')
-_JSONP_RE = re.compile(r"\((\[.*\])\);?\s*$", re.S)
+_JSONP_RE = re.compile(r"\((\[.*\])\);?\s*$", re.DOTALL)
 
 
 class SinaRequestError(Exception):
@@ -52,10 +52,10 @@ class SinaClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
-    async def __aenter__(self) -> "SinaClient":
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *args: object) -> None:
         await self.close()
 
     async def get_quotes(self, codes: list[str]) -> dict[str, list[str]]:

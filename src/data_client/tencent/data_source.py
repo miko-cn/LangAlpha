@@ -9,12 +9,17 @@ endpoints — intraday for HK raises and the chain falls through to Futu.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from src.data_client.base import FetchResult
-from src.data_client.cn.bars import VOLUME_LOT, make_bar, minute_stamp_to_ms, to_ms, sort_ascending
+from src.data_client.cn.bars import (
+    VOLUME_LOT,
+    make_bar,
+    minute_stamp_to_ms,
+    sort_ascending,
+    to_ms,
+)
 from src.data_client.cn.symbols import split_app_symbol, tencent_symbol
 from src.data_client.market_data_provider import symbol_timezone
 
@@ -22,7 +27,7 @@ from .tencent_client import MINUTE_PERIOD, TencentClient, TencentRequestError
 
 logger = logging.getLogger(__name__)
 
-_UTC = timezone.utc
+_UTC = UTC
 _ET = ZoneInfo("America/New_York")
 
 # Realtime field indices (identical layout for A-share and HK).

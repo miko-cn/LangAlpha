@@ -14,11 +14,10 @@ Bar normalization differences from the other sources:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.config.env import TUSHARE_ENABLED
-from src.data_client.base import FetchResult
 from src.data_client.cn.bars import VOLUME_LOT, make_bar, sort_ascending, to_ms
 from src.data_client.cn.symbols import tushare_code
 from src.data_client.market_data_provider import symbol_timezone
@@ -29,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def _today_compact() -> str:
-    return datetime.now(timezone.utc).date().strftime("%Y%m%d")
+    return datetime.now(UTC).date().strftime("%Y%m%d")
 
 
 class TushareDataSource:
@@ -91,7 +90,7 @@ class TushareDataSource:
             "market": "open" if phase == "open" else "closed",
             "afterHours": phase == "post",
             "earlyHours": phase == "pre",
-            "serverTime": datetime.now(timezone.utc).isoformat(),
+            "serverTime": datetime.now(UTC).isoformat(),
             "exchanges": None,
         }
 

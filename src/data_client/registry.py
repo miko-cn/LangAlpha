@@ -191,6 +191,7 @@ async def get_market_data_provider() -> MarketDataSource:
             return _market_data_provider
 
         from src.config.settings import get_market_data_providers
+
         from .market_data_provider import MarketDataProvider, ProviderEntry
 
         provider_configs = get_market_data_providers()
@@ -261,6 +262,7 @@ async def get_news_data_provider():
             return _news_data_provider
 
         from src.config.settings import get_news_data_providers
+
         from .news_data_provider import NewsDataProvider
 
         provider_configs = get_news_data_providers()

@@ -12,14 +12,14 @@ daily) are scaled by ``VOLUME_LOT`` so every bar's ``volume`` is shares.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
 # Tushare ``vol`` (手) and Tencent A-share daily volume are lot counts; ×100 → shares.
 VOLUME_LOT = 100
 
-_UTC = timezone.utc
+_UTC = UTC
 
 
 def _as_float(value: Any) -> float:
