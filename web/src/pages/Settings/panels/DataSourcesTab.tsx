@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useDataSourcesStatus } from '@/hooks/useDataSourcesStatus';
 import type { DataSourceStatus } from '@/api/dataSources';
+import { CollectLogPanel } from './CollectLogPanel';
 
 /** "cn" / "hk" / "us" / "all" / "non-us" — short labels for the chain order. */
 const MARKET_LABELS: Record<string, string> = {
@@ -178,6 +179,8 @@ export function DataSourcesTab() {
           <ProviderCard key={source.name} source={source} />
         ))}
       </div>
+
+      <CollectLogPanel />
 
       <div className="flex items-center justify-between">
         <button

@@ -36,3 +36,28 @@ export async function getDataSourcesStatus(): Promise<DataSourcesStatusResponse>
   );
   return data;
 }
+
+export interface CollectLogRow {
+  ts_ms: number;
+  capability: string;
+  symbol: string;
+  source: string;
+  status: string; // 'ok' | 'empty' | 'error'
+  took_ms: number;
+  detail?: string;
+}
+
+export interface CollectLogResponse {
+  rows: CollectLogRow[];
+  total: number;
+}
+
+export async function getDataSourcesLogs(
+  limit = 200
+): Promise<CollectLogResponse> {
+  const { data } = await api.get<CollectLogResponse>(
+    '/api/v1/data-sources/logs',
+    { params: { limit } }
+  );
+  return data;
+}

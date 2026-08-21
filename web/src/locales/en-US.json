@@ -219,7 +219,11 @@
       "loadFailed": "Failed to load data source status: {{detail}}",
       "refresh": "Refresh",
       "refreshing": "Refreshing…",
-      "chainHint": "Requests try each provider in order and fall back to the next on failure or empty result. Provider order and capability overrides are configured server-side in config.yaml."
+      "chainHint": "Requests try each provider in order and fall back to the next on failure or empty result. Provider order and capability overrides are configured server-side in config.yaml.",
+      "logTitle": "Collection log",
+      "logHint": "Latest provider-chain attempts — which source handled each request, fell back, or failed, with latency. Polled every 5s; a per-process view for diagnostics.",
+      "logLoadFailed": "Failed to load collection log",
+      "logEmpty": "No data collection attempts recorded yet — request a quote or chart to see activity."
     },
     "addProvider": "Add Provider",
     "addProviderName": "Provider Name",

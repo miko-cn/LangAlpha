@@ -219,7 +219,11 @@
       "loadFailed": "数据源状态加载失败：{{detail}}",
       "refresh": "刷新",
       "refreshing": "刷新中…",
-      "chainHint": "请求按顺序尝试各数据源，在失败或空结果时回退到下一个。顺序和能力覆盖在服务端 config.yaml 配置。"
+      "chainHint": "请求按顺序尝试各数据源，在失败或空结果时回退到下一个。顺序和能力覆盖在服务端 config.yaml 配置。",
+      "logTitle": "采集日志",
+      "logHint": "最近的数据源链请求记录 —— 哪个源处理了请求、回退或失败，以及耗时。每 5 秒刷新；按进程展示，用于诊断。",
+      "logLoadFailed": "采集日志加载失败",
+      "logEmpty": "暂无采集记录 —— 请求一次行情或图表即可看到活动。"
     },
     "addProvider": "添加供应商",
     "addProviderName": "供应商名称",

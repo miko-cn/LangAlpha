@@ -94,6 +94,7 @@ export const queryKeys = {
   dataSources: {
     all:    ['dataSources'],
     status: () => [...queryKeys.dataSources.all, 'status'],
+    logs:   (limit: number) => [...queryKeys.dataSources.all, 'logs', limit],
   },
   // Per-symbol quote cache — the unified snapshot layer (see lib/quotes/).
   // Key = uppercase legacy symbol spelling (indexes stripped of a leading '^').

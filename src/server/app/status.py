@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from src.config.settings import get_rate_limit_config
@@ -174,3 +174,39 @@ async def get_data_sources_status() -> DataSourcesStatusResponse:
         total=len(sources),
         available=available_count,
     )
+
+
+# ---------------------------------------------------------------------------
+# Collect log endpoint
+# ---------------------------------------------------------------------------
+
+
+class CollectLogResponse(BaseModel):
+    """Recent market-data collection attempts (per-process ring buffer)."""
+
+    rows: list[dict] = Field(default_factory=list)
+    total: int = Field(default=0)
+
+
+@router.get(
+    "/data-sources/logs",
+    response_model=CollectLogResponse,
+    summary="Get recent data collection log",
+    description="Return recent market-data provider-chain attempts: which source "
+    "handled each request, whether it succeeded, fell back, or errored, and the "
+    "latency. Process-local view (per-worker ring buffer), for diagnostics only.",
+)
+async def get_data_sources_logs(
+    limit: int = Query(200, ge=1, le=500, description="Max rows to return"),
+) -> CollectLogResponse:
+    """Return the most recent market-data collection attempts.
+
+    This is a diagnostic surface backed by an in-process ring buffer — under
+    ``--workers N`` each worker records its own slice, so the panel reflects
+    whichever process served the request. It is not a liveness ledger and
+    must not drive control flow.
+    """
+    from src.data_client.collect_log import collect_log_snapshot
+
+    rows = collect_log_snapshot(limit=limit)
+    return CollectLogResponse(rows=rows, total=len(rows))

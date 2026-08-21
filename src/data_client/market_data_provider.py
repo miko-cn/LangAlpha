@@ -8,6 +8,7 @@ provider on error.
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -15,8 +16,14 @@ from zoneinfo import ZoneInfo
 from src.market_protocol import CARET_INDEX_REGIONS, to_canonical
 
 from .base import FetchResult, MarketDataSource
+from .collect_log import record_attempt
 
 logger = logging.getLogger(__name__)
+
+
+def _monotonic_ms() -> float:
+    """Wall-clock millisecond timestamp for a collect-log row."""
+    return time.time() * 1000
 
 # Symbol suffix → market region
 _SUFFIX_MAP: dict[str, str] = {
@@ -168,6 +175,8 @@ class MarketDataProvider:
         last_exc: Exception | None = None
         first_empty: tuple[list[dict[str, Any]], str, bool] | None = None
         for entry in candidates:
+            cap = capability or method
+            started = _monotonic_ms()
             try:
                 result = await getattr(entry.source, method)(symbol=symbol, **kwargs)
                 if isinstance(result, FetchResult):
@@ -185,7 +194,11 @@ class MarketDataProvider:
                         entry.name,
                         symbol,
                     )
+                    record_attempt(capability=cap, symbol=symbol, source=entry.name,
+                                   status="empty", took_ms=_monotonic_ms() - started)
                     continue
+                record_attempt(capability=cap, symbol=symbol, source=entry.name,
+                               status="ok", took_ms=_monotonic_ms() - started)
                 return bars, entry.name, truncated
             except Exception as exc:
                 logger.warning(
@@ -194,6 +207,9 @@ class MarketDataProvider:
                     symbol,
                     exc,
                 )
+                record_attempt(capability=cap, symbol=symbol, source=entry.name,
+                               status="error", took_ms=_monotonic_ms() - started,
+                               detail=str(exc))
                 last_exc = exc
         if first_empty is not None:
             return first_empty
@@ -369,6 +385,7 @@ class MarketDataProvider:
                 continue
             tried.add(entry.name)
 
+            started = _monotonic_ms()
             try:
                 snapshots = await fn(
                     symbols=batch,
@@ -380,6 +397,9 @@ class MarketDataProvider:
                     "market_data.snapshot.fallback | source=%s error=%s",
                     entry.name, exc,
                 )
+                record_attempt(capability="snapshot", symbol=",".join(batch)[:80],
+                               source=entry.name, status="error",
+                               took_ms=_monotonic_ms() - started, detail=str(exc))
                 last_exc = exc
                 continue
 
@@ -414,6 +434,9 @@ class MarketDataProvider:
                     )
 
             if resolved:
+                record_attempt(capability="snapshot", symbol=",".join(batch)[:80],
+                               source=entry.name, status="ok",
+                               took_ms=_monotonic_ms() - started)
                 pending = [s for s in pending if normalize_symbol(s) not in resolved]
                 if not pending:
                     break
