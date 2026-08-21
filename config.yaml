@@ -176,6 +176,42 @@ redis:
 
 
 # =============================================================================
+# RATE LIMITING CONFIGURATION
+# =============================================================================
+# Per-source rate limits for market data providers. Each source gets a token
+# bucket (rate_per_sec steady-state, burst depth). 429 retry policy is shared
+# across all sources. Omitted sources fall back to the hardcoded defaults in
+# _ratelimit.py.
+rate_limit:
+  sources:
+    futu:
+      rate_per_sec: 3.0
+      burst: 5
+    tencent:
+      rate_per_sec: 2.0
+      burst: 4
+    sina:
+      rate_per_sec: 2.0
+      burst: 4
+    tushare:
+      rate_per_sec: 0.5
+      burst: 2
+    ginlix-data:
+      rate_per_sec: 5.0
+      burst: 10
+    fmp:
+      rate_per_sec: 3.0
+      burst: 6
+    yfinance:
+      rate_per_sec: 2.0
+      burst: 4
+  retry:
+    max_retries: 2
+    base_delay: 2.0
+    max_delay: 30.0
+
+
+# =============================================================================
 # MARKET DATA CONFIGURATION
 # =============================================================================
 # Ordered provider chain — requests try each provider in order.

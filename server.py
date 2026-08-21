@@ -75,9 +75,15 @@ if __name__ == "__main__":
     # lifecycle overlap across processes, gen-CAS-bounded last-writer-wins).
     os.environ["LANGALPHA_WORKERS"] = str(args.workers)
 
+    from src.config.settings import get_rate_limit_config
     from src.data_client._ratelimit import init_ratelimit
 
-    init_ratelimit()
+    rate_cfg = get_rate_limit_config()
+    config_dict = {
+        name: {"rate_per_sec": s.rate_per_sec, "burst": s.burst}
+        for name, s in rate_cfg.sources.items()
+    }
+    init_ratelimit(config=config_dict or None)
 
     try:
         logger.info(f"Starting server on {args.host}:{args.port}")

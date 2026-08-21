@@ -410,6 +410,30 @@ class WorkflowOrchestrationConfig(BaseModel):
         return self
 
 
+class RateLimitSourceConfig(BaseModel):
+    """Per-source rate limit settings."""
+
+    rate_per_sec: float = Field(default=5.0, ge=0.1, description="Steady-state requests per second")
+    burst: int = Field(default=10, ge=1, description="Maximum burst size (bucket depth)")
+
+
+class RateLimitRetryConfig(BaseModel):
+    """429 retry policy settings."""
+
+    max_retries: int = Field(default=2, ge=0, description="Max 429 retries before giving up")
+    base_delay: float = Field(default=2.0, ge=0.1, description="Initial retry delay in seconds (doubled each attempt)")
+    max_delay: float = Field(default=30.0, ge=1.0, description="Maximum retry delay in seconds")
+
+
+class RateLimitConfig(BaseModel):
+    """Rate limiting configuration for market data sources."""
+
+    sources: dict[str, RateLimitSourceConfig] = Field(
+        default_factory=dict, description="Per-source rate limit specs"
+    )
+    retry: RateLimitRetryConfig = Field(default_factory=RateLimitRetryConfig)
+
+
 class InfrastructureConfig(BaseModel):
     """Root model for infrastructure configuration (config.yaml)."""
 
@@ -465,6 +489,9 @@ class InfrastructureConfig(BaseModel):
 
     # Redis Cache
     redis: RedisConfig = Field(default_factory=RedisConfig)
+
+    # Rate Limiting
+    rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
 
     # Market Data
     market_data: MarketDataConfig = Field(default_factory=MarketDataConfig)

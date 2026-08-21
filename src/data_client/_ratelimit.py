@@ -214,10 +214,26 @@ _SHARED_BUCKET: TokenBucket | None = None
 
 
 def init_ratelimit(*, clock: Callable[[], float] | None = None,
-                   sleep: Callable[[float], Awaitable[None]] | None = None) -> TokenBucket:
-    """Initialize the shared rate-limit bucket; returns it for inspection."""
+                   sleep: Callable[[float], Awaitable[None]] | None = None,
+                   config: dict[str, dict[str, float | int]] | None = None) -> TokenBucket:
+    """Initialize the shared rate-limit bucket; returns it for inspection.
+
+    Args:
+        clock: Injectable monotonic clock for testing.
+        sleep: Injectable sleep coroutine for testing.
+        config: Optional override dict mapping source name to
+            ``{"rate_per_sec": X, "burst": Y}``. Merged on top of the
+            hardcoded defaults — config values win.
+    """
     global _SHARED_BUCKET
-    _SHARED_BUCKET = TokenBucket(clock=clock, sleep=sleep)
+    specs = dict(_BUCKET_SPECS)
+    if config:
+        for name, overrides in config.items():
+            if isinstance(overrides, dict):
+                rate = overrides.get("rate_per_sec", specs[name].rate_per_sec if name in specs else 5.0)
+                burst = overrides.get("burst", specs[name].burst if name in specs else 10)
+                specs[name] = _Spec(rate_per_sec=float(rate), burst=int(burst))  # type: ignore[arg-type]
+    _SHARED_BUCKET = TokenBucket(specs, clock=clock, sleep=sleep)
     return _SHARED_BUCKET
 
 
