@@ -220,6 +220,18 @@
     "failedToUploadAvatar": "上传头像失败",
     "failedToUpdateUser": "更新用户信息失败",
     "failedToResetPreferences": "重置偏好设置失败",
+    "dataSources": {
+      "tabLabel": "数据源",
+      "title": "行情数据源链",
+      "subtitle": "共 {{total}} 个数据源，{{available}} 个当前可用。顺序按 config.yaml 配置的链执行。",
+      "available": "可用",
+      "unavailable": "不可用",
+      "markets": "市场",
+      "loadFailed": "数据源状态加载失败：{{detail}}",
+      "refresh": "刷新",
+      "refreshing": "刷新中…",
+      "chainHint": "请求按顺序尝试各数据源，在失败或空结果时回退到下一个。顺序和能力覆盖在服务端 config.yaml 配置。"
+    },
     "addProvider": "添加供应商",
     "addProviderName": "供应商名称",
     "addProviderNamePlaceholder": "例如 my-random-provider",
