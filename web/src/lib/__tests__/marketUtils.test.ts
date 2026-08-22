@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Mock } from 'vitest';
-import { getExtendedHoursInfo, searchStocks, fetchMarketStatus } from '../marketUtils';
+import { getExtendedHoursInfo, searchStocks, fetchMarketStatus, indexMarketSymbol } from '../marketUtils';
 
 // Mock the api client
 vi.mock('@/api/client', () => ({
@@ -245,5 +245,14 @@ describe('fetchMarketStatus', () => {
     mockGet.mockRejectedValue(err);
 
     await expect(fetchMarketStatus()).rejects.toThrow();
+  });
+});
+
+describe('indexMarketSymbol', () => {
+  it('carets bare US families and leaves dotted CN/HK tickers alone', () => {
+    expect(indexMarketSymbol('GSPC')).toBe('^GSPC');
+    expect(indexMarketSymbol('^HSI')).toBe('^HSI');
+    expect(indexMarketSymbol('000300.SS')).toBe('000300.SS');
+    expect(indexMarketSymbol('^000300.ss')).toBe('000300.SS');
   });
 });

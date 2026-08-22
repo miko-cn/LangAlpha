@@ -59,7 +59,7 @@ describe('AddWidgetDialog', () => {
 
   it('disables singleton widgets that are already on the dashboard', () => {
     // Find a singleton widget by checking the registry.
-    // (Conversation, Watchlist, MarketsOverview are typical singletons.)
+    // (Conversation and Watchlist are typical singletons.)
     renderDialog({
       existingWidgets: [
         { id: 'existing-1', type: 'agent.conversation', config: {} },

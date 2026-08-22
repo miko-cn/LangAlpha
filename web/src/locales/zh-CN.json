@@ -801,7 +801,14 @@
       },
       "marketsOverview": {
         "title": "市场概览",
-        "description": "主要指数实时磁贴，附缩略走势图。"
+        "title_cn": "市场概览 · 沪深",
+        "title_hk": "市场概览 · 港股",
+        "description": "主要指数实时磁贴。可添加多份，设置里切换美股 / 沪深 / 港股。",
+        "basket": "指数篮子",
+        "basket_us": "美股",
+        "basket_cn": "沪深",
+        "basket_hk": "港股",
+        "basketHelper": "同一组件可放多份，各自看一个市场。"
       },
       "insightBrief": {
         "title": "AI 每日简报",

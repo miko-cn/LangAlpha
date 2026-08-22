@@ -143,6 +143,34 @@ describe('getIndex', () => {
     expect(result.sparklineData.map((p) => p.val)).toEqual([105, 110]);
     expect(result.price).toBe(110);
   });
+
+  it('uses the venue-local session for CN indexes instead of the ET regular-hours window', async () => {
+    // Asia/Shanghai is UTC+8 year-round. These bars are a full 沪深 session
+    // plus a leftover prior-day print. ET regular hours (09:30–16:00) contain
+    // none of them — the old filter kept only the afternoon half (or blanked).
+    const SH = (y: number, mo: number, d: number, h: number, mi: number) =>
+      Date.UTC(y, mo, d, h - 8, mi);
+
+    apiMock.get.mockResolvedValueOnce({
+      data: {
+        data: [
+          { time: SH(2025, 0, 13, 15, 0), open: 3900, close: 3910 },
+          { time: SH(2025, 0, 14, 9, 30), open: 3920, close: 3920 },
+          { time: SH(2025, 0, 14, 10, 30), open: 3920, close: 3930 },
+          { time: SH(2025, 0, 14, 14, 0), open: 3930, close: 3940 },
+          { time: SH(2025, 0, 14, 15, 0), open: 3940, close: 3950 },
+        ],
+      },
+    });
+
+    const result = await getIndex('000300.SS');
+
+    expect(result.asOfDate).toBe('2025-01-14');
+    expect(result.sparklineData.map((p) => p.val)).toEqual([3920, 3930, 3940, 3950]);
+    expect(result.sparklineData[0].time).toBe('09:30');
+    expect(result.sparklineData[result.sparklineData.length - 1].time).toBe('15:00');
+    expect(result.price).toBe(3950);
+  });
 });
 
 describe('getIndices', () => {

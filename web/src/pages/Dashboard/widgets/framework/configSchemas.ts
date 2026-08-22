@@ -252,7 +252,11 @@ export const InsightBriefConfigSchema = z.object({
 
 export const ConversationConfigSchema = z.object({}).catch({});
 
+export const MARKETS_OVERVIEW_BASKETS = ['us', 'cn', 'hk'] as const;
 export const MarketsOverviewConfigSchema = z.object({
+  // Empty/missing basket → US, so stored `config: {}` (every current preset)
+  // keeps the original five-index strip.
+  basket: z.enum(MARKETS_OVERVIEW_BASKETS).optional().catch('us'),
   indices: z.array(z.string().min(1)).optional().catch([]),
 });
 

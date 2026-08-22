@@ -3,7 +3,8 @@
  * All backend endpoints used by the Dashboard page
  */
 import { api } from '@/api/client';
-import { utcMsToETDate, utcMsToETTime } from '@/lib/utils';
+import { timezoneForSymbol, US_MARKET_TZ } from '@/lib/bars/exchanges';
+import { dateStrInTz, utcMsToETDate, utcMsToETTime } from '@/lib/utils';
 import { normalizeIndexKey } from '@/lib/marketUtils';
 import { snapshotToStockPrice } from '@/lib/quotes/quoteAdapters';
 import { getSnapshotIndexes, getSnapshotStocks } from '@/lib/quotes/snapshotApi';
@@ -73,7 +74,26 @@ interface EarningsResponse {
 
 /** Index symbols: normalized (GSPC, IXIC, DJI, RUT). Index.yml / Index Batch.yml use these. */
 const INDEX_SYMBOLS: string[] = ['GSPC', 'IXIC', 'DJI', 'RUT', 'VIX'];
-const INDEX_NAMES: Record<string, string> = { GSPC: 'S&P 500', IXIC: 'NASDAQ', DJI: 'Dow Jones', RUT: 'Russell 2000', VIX: 'VIX' };
+const INDEX_NAMES: Record<string, string> = {
+  GSPC: 'S&P 500', IXIC: 'NASDAQ', DJI: 'Dow Jones', RUT: 'Russell 2000', VIX: 'VIX',
+  // Bare HK families — yfinance snapshots often omit `name`. CN dotted
+  // indexes keep snapshot names (腾讯 上证指数 / 沪深300) so they are not listed.
+  HSI: 'Hang Seng', HSCE: 'HSCEI',
+};
+
+/** Caret-less HK families: timezoneForSymbol falls back to ET (no suffix). */
+const HK_INDEX_FAMILIES = new Set(['HSI', 'HSCE', 'HSCEI', 'HSTECH']);
+
+function indexSparklineTz(norm: string): string {
+  if (HK_INDEX_FAMILIES.has(norm)) return 'Asia/Hong_Kong';
+  return timezoneForSymbol(norm);
+}
+
+function timeStrInTz(ms: number, tz: string): string {
+  return new Date(ms).toLocaleTimeString('en-US', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
 
 // Trim + strip a leading '^' + uppercase — the shared symbol-key normalizer.
 const normalizeIndexSymbol = normalizeIndexKey;
@@ -110,21 +130,32 @@ export async function getIndex(symbol: string, _opts: Record<string, unknown> = 
     // Sort ascending by time (Unix ms)
     const sorted = [...pts].sort((a: IntradayPoint, b: IntradayPoint) => a.time - b.time);
 
-    // Isolate regular-hours points (9:30–16:00 ET) first, then take the most
-    // recent date that actually has them. Some indices (e.g. VIX) carry
+    // US: isolate regular-hours points (9:30–16:00 ET) first, then take the
+    // most recent date that actually has them. Some indices (e.g. VIX) carry
     // overnight/pre-market bars, so the chronologically-last bar's date can have
     // zero regular-hours points on a pre-open day — which would blank the
     // sparkline. `sorted` is ascending, so the regular-hours slice is too.
-    const regularHours = sorted.filter((p: IntradayPoint) => {
-      const t = utcMsToETTime(p.time);
-      return t >= '09:30' && t <= '16:00';
-    });
-    const latestDate = regularHours.length
-      ? utcMsToETDate(regularHours[regularHours.length - 1].time)
-      : utcMsToETDate(sorted[sorted.length - 1].time);
-    const todayPoints = regularHours.length
-      ? regularHours.filter((p: IntradayPoint) => utcMsToETDate(p.time) === latestDate)
-      : sorted.filter((p: IntradayPoint) => utcMsToETDate(p.time) === latestDate);
+    //
+    // CN/HK: the ET window is overnight for Asia — applying it drops the
+    // morning session. Use the last venue-local calendar date instead.
+    const tz = indexSparklineTz(norm);
+    let todayPoints: IntradayPoint[];
+    let latestDate: string;
+    if (tz === US_MARKET_TZ) {
+      const regularHours = sorted.filter((p: IntradayPoint) => {
+        const t = utcMsToETTime(p.time);
+        return t >= '09:30' && t <= '16:00';
+      });
+      latestDate = regularHours.length
+        ? utcMsToETDate(regularHours[regularHours.length - 1].time)
+        : utcMsToETDate(sorted[sorted.length - 1].time);
+      todayPoints = regularHours.length
+        ? regularHours.filter((p: IntradayPoint) => utcMsToETDate(p.time) === latestDate)
+        : sorted.filter((p: IntradayPoint) => utcMsToETDate(p.time) === latestDate);
+    } else {
+      latestDate = dateStrInTz(sorted[sorted.length - 1].time, tz);
+      todayPoints = sorted.filter((p: IntradayPoint) => dateStrInTz(p.time, tz) === latestDate);
+    }
 
     const oldest = todayPoints[0];
     const mostRecent = todayPoints[todayPoints.length - 1];
@@ -147,7 +178,10 @@ export async function getIndex(symbol: string, _opts: Record<string, unknown> = 
       asOfDate: latestDate,
       sparklineData: todayPoints
         .filter((p: IntradayPoint) => Number(p.close) > 0)
-        .map((p: IntradayPoint) => ({ time: utcMsToETTime(p.time), val: Number(p.close) })),
+        .map((p: IntradayPoint) => ({
+          time: tz === US_MARKET_TZ ? utcMsToETTime(p.time) : timeStrInTz(p.time, tz),
+          val: Number(p.close),
+        })),
     };
 
     return result;

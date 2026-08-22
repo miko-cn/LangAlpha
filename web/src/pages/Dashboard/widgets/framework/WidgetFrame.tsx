@@ -213,7 +213,9 @@ export function WidgetFrame({
             <GripVertical size={14} />
           </div>
         )}
-        <div className="widget-frame__title">{t(definition.titleKey)}</div>
+        <div className="widget-frame__title">
+          {t(definition.resolveTitleKey?.(instance.config) ?? definition.titleKey)}
+        </div>
         <div className="widget-frame__actions widget-drag-cancel">
           {editMode && hasSettings && (
             <button

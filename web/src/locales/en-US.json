@@ -801,7 +801,14 @@
       },
       "marketsOverview": {
         "title": "Markets Overview",
-        "description": "Live tiles for major indices with sparklines."
+        "title_cn": "Markets Overview · CN",
+        "title_hk": "Markets Overview · HK",
+        "description": "Live index tiles. Add more than one and switch US / mainland / Hong Kong in settings.",
+        "basket": "Index basket",
+        "basket_us": "US",
+        "basket_cn": "Mainland",
+        "basket_hk": "Hong Kong",
+        "basketHelper": "Drop another copy of this widget to watch a second market."
       },
       "insightBrief": {
         "title": "AI Daily Brief",

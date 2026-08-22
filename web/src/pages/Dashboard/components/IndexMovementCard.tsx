@@ -5,6 +5,7 @@ import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { createFormatter } from '@/lib/format';
+import { indexMarketSymbol } from '@/lib/marketUtils';
 import { utcMsToETDate } from '@/lib/utils';
 import type { IndexData } from '@/types/market';
 
@@ -76,7 +77,7 @@ function IndexCardContent({ index }: { index: IndexData }) {
               </span>
             </div>
             <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-              ^{index.symbol}
+              {indexMarketSymbol(index.symbol)}
             </div>
           </div>
           <div className="text-right">
@@ -171,7 +172,7 @@ function IndexCard({ index, delay }: IndexCardProps) {
         borderColor: 'var(--color-border-muted)',
         backgroundColor: 'var(--color-bg-card)',
       }}
-      onClick={() => navigate(`/market?symbol=^${index.symbol}`)}
+      onClick={() => navigate(`/market?symbol=${encodeURIComponent(indexMarketSymbol(index.symbol))}`)}
       onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--color-border-default)')}
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--color-border-muted)')}
     >
@@ -292,7 +293,7 @@ function IndexStackWidget({ indices }: { indices: IndexData[] }) {
               backgroundColor: 'var(--color-bg-card)',
               touchAction: 'pan-y',
             }}
-            onClick={() => navigate(`/market?symbol=^${index.symbol}`)}
+            onClick={() => navigate(`/market?symbol=${encodeURIComponent(indexMarketSymbol(index.symbol))}`)}
           >
             <IndexCardContent index={index} />
           </motion.div>

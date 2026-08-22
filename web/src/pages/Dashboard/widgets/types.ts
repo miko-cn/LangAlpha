@@ -37,6 +37,11 @@ export interface WidgetDefinition<C = unknown> {
   minSize: WidgetSize;
   maxSize?: WidgetSize;
   settingsComponent?: ComponentType<WidgetSettingsProps<C>>;
+  /**
+   * Optional per-instance title. Falls back to `titleKey` when omitted.
+   * Additive — existing widgets ignore it.
+   */
+  resolveTitleKey?: (config: C) => string;
   singleton?: boolean;
   /**
    * When true, the widget opts out of manual vertical resize: its cell height

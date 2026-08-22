@@ -69,4 +69,13 @@ describe('IndexMovementCard', () => {
     const label = screen.getByText(/^\d{1,2}\/\d{1,2}$/);
     expect(label.textContent).not.toContain('NaN');
   });
+
+  it('labels US families with a caret and dotted CN indexes without one', () => {
+    renderCard(baseIndex({ symbol: 'GSPC' }));
+    expect(screen.getByText('^GSPC')).toBeInTheDocument();
+
+    renderCard(baseIndex({ symbol: '000300.SS', name: 'CSI 300' }));
+    expect(screen.getByText('000300.SS')).toBeInTheDocument();
+    expect(screen.queryByText('^000300.SS')).not.toBeInTheDocument();
+  });
 });

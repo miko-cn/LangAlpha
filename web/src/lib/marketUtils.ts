@@ -59,6 +59,15 @@ export function normalizeIndexKey(symbol: string): string {
 }
 
 /**
+ * MarketView / card-label spelling. US family names take a caret (`^GSPC`);
+ * suffixed CN/HK indexes (`000300.SS`) must not — `^000300.SS` is not a ticker.
+ */
+export function indexMarketSymbol(symbol: string): string {
+  const s = normalizeIndexKey(symbol);
+  return s.includes('.') ? s : `^${s}`;
+}
+
+/**
  * Compute extended-hours display info from market status and a data row.
  * Accepts both camelCase (snapshot-enriched rows) and snake_case (raw snapshot) field names.
  */
