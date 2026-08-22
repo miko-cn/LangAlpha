@@ -96,8 +96,12 @@ async def test_misses_fill_via_one_batched_call(service):
     assert [r["symbol"] for r in out] == ["AAPL", "MSFT"]
     assert provider.calls == [["AAPL", "MSFT"]]
     # ONE pipelined write-through, not a connection per symbol: the batch cap
-    # is 250, which alone exceeded the 150-slot pool.
+    # is 250, which alone exceeded the 150-slot pool. Fresh row + last-good
+    # sidecar share that one pipeline.
     assert cache.set_many_calls == 1
+    aapl_ref = to_canonical("AAPL")
+    assert cache.store[svc.last_key(aapl_ref)]["price"] == 100.0
+    assert cache.set_ttls[svc.last_key(aapl_ref)] == qcs._LAST_TTL
 
     # Second request: pure cache hits, no upstream call.
     out = await svc.get_quotes(["AAPL", "MSFT"])
@@ -163,16 +167,15 @@ async def test_spellings_collapse_to_one_key(service):
 
 
 @pytest.mark.asyncio
-async def test_provider_error_propagates_and_clears_inflight(service):
-    svc, cache, install = service
+async def test_provider_error_empty_when_no_last_and_clears_inflight(service):
+    svc, _cache, install = service
 
     class _Boom:
         async def get_snapshots(self, symbols, asset_type="stocks", user_id=None):
             raise RuntimeError("upstream down")
 
     install(_Boom())
-    with pytest.raises(RuntimeError):
-        await svc.get_quotes(["AAPL"])
+    assert await svc.get_quotes(["AAPL"]) == []
     assert svc._inflight == {}
 
     # Recovers on the next call once the provider is healthy again.
@@ -180,6 +183,38 @@ async def test_provider_error_propagates_and_clears_inflight(service):
     install(provider)
     out = await svc.get_quotes(["AAPL"])
     assert out[0]["symbol"] == "AAPL"
+
+
+@pytest.mark.asyncio
+async def test_failed_or_empty_fill_serves_last_good(service):
+    svc, cache, install = service
+    install(_StubProvider({"AAPL": _row("AAPL", 188.0)}))
+    await svc.get_quotes(["AAPL"])
+    ref = to_canonical("AAPL")
+    primary = svc.quote_key(ref)
+    last = svc.last_key(ref)
+    del cache.store[primary]
+    assert last in cache.store
+
+    class _Boom:
+        async def get_snapshots(self, symbols, asset_type="stocks", user_id=None):
+            raise RuntimeError("upstream down")
+
+    install(_Boom())
+    out = await svc.get_quotes(["AAPL"])
+    assert out[0]["symbol"] == "AAPL"
+    assert out[0]["price"] == 188.0
+    assert out[0]["is_stale"] is True
+    # Stale write is a retry window, not a negative sentinel — last stays.
+    assert cache.store[primary] != qcs._NO_DATA
+    assert cache.set_ttls[primary] == qcs._TTL_STALE_RETRY
+    assert cache.store[last]["price"] == 188.0
+
+    del cache.store[primary]
+    install(_StubProvider({}))
+    out = await svc.get_quotes(["AAPL"])
+    assert out[0]["price"] == 188.0
+    assert out[0]["is_stale"] is True
 
 
 @pytest.mark.asyncio
@@ -232,8 +267,9 @@ async def test_follower_survives_leader_cancellation(service):
 
 @pytest.mark.asyncio
 async def test_follower_survives_leader_provider_error(service):
-    """The leader's upstream failure is the leader's error to raise; a
-    follower treats the errored shared future as a miss."""
+    """Upstream failure is a miss for this cycle (stale-if-error has no
+    last-good yet). Leader and follower share the empty result — the
+    leader must not 500 the follower off a dead future."""
     svc, cache, install = service
     started = asyncio.Event()
     gate = asyncio.Event()
@@ -251,8 +287,7 @@ async def test_follower_survives_leader_provider_error(service):
     await asyncio.sleep(0.01)
     gate.set()
 
-    with pytest.raises(RuntimeError):
-        await leader
+    assert await leader == []
     assert await follower == []
 
 

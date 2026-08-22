@@ -94,6 +94,27 @@ describe('QuoteBatcher', () => {
     await expect(batcher.request('AAPL')).resolves.toBeNull();
   });
 
+  it('keeps the last usable quote when a later poll is empty or throws', async () => {
+    mockGetSnapshotStocks.mockResolvedValue({ snapshots: [{ symbol: 'AAPL', price: 188.5, change: 1 }] });
+    await expect(batcher.request('AAPL')).resolves.toMatchObject({ price: 188.5 });
+
+    mockGetSnapshotStocks.mockResolvedValue({ snapshots: [] });
+    await expect(batcher.request('AAPL')).resolves.toMatchObject({ price: 188.5 });
+    expect(client.getQueryData(queryKeys.quote.detail('AAPL'))).toMatchObject({ price: 188.5 });
+
+    mockGetSnapshotStocks.mockRejectedValue(new Error('network'));
+    await expect(batcher.request('AAPL')).resolves.toMatchObject({ price: 188.5 });
+  });
+
+  it('keeps the last usable quote when the next row is a zero-price stub', async () => {
+    mockGetSnapshotIndexes.mockResolvedValue({ snapshots: [{ symbol: 'GSPC', price: 5000 }] });
+    const first = await batcher.request('GSPC', { isIndex: true });
+    expect(first?.price).toBe(5000);
+
+    mockGetSnapshotIndexes.mockResolvedValue({ snapshots: [{ symbol: 'GSPC', price: 0 }] });
+    await expect(batcher.request('GSPC', { isIndex: true })).resolves.toMatchObject({ price: 5000 });
+  });
+
   it('binds one batcher per QueryClient', () => {
     expect(getQuoteBatcher(client)).toBe(batcher);
     const other = new QueryClient();

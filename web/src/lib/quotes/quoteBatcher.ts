@@ -16,8 +16,9 @@
  *
  * In-flight dedup: a symbol already being fetched in the current window is not
  * re-requested — the pending promise is returned instead. Unknown/unresolvable
- * symbols (dropped from the batch response) resolve to `null`, never throw, so
- * consumers surface `quote === undefined` without crashing.
+ * symbols (dropped from the batch response) resolve to `null` **unless a prior
+ * usable quote is already in the React Query cache** — a failed/empty poll
+ * must not clobber the last good print (weekend / upstream blip → N/A).
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { getSnapshotStocks, getSnapshotIndexes } from './snapshotApi';
@@ -62,6 +63,13 @@ export const indexKey = normalizeIndexKey;
 /** Normalize a symbol to its ['quote', KEY] cache-key spelling. */
 export function quoteKey(symbol: string, isIndex = false): string {
   return isIndex ? indexKey(symbol) : stockKey(symbol);
+}
+
+/** A quote the dashboard will actually render (price > 0). 0 / null is N/A. */
+export function usableQuote(row: QuoteRow | null | undefined): QuoteRow | null {
+  if (!row || row.price == null) return null;
+  const price = Number(row.price);
+  return Number.isFinite(price) && price > 0 ? row : null;
 }
 
 interface Deferred {
@@ -142,15 +150,17 @@ export class QuoteBatcher {
     } catch {
       // getSnapshot* already swallow network errors and return {}; this catch is
       // purely defensive so a thrown error never rejects a consumer's query.
-      // Every pending symbol falls through to `null` below.
+      // Missing rows fall through to last-good below.
     }
 
     for (const [key, deferred] of pool) {
       const flightKey = (isIndex ? 'i:' : 's:') + key;
-      // Missing / unknown symbol → null (not undefined): React Query rejects an
-      // `undefined` queryFn result, and the hooks map null → `quote: undefined`.
-      const value: QuoteRow | null = byKey.get(key) ?? null;
-      this.queryClient.setQueryData(queryKeys.quote.detail(key), value);
+      const qk = queryKeys.quote.detail(key);
+      const prev = this.queryClient.getQueryData<QuoteRow | null>(qk);
+      // Incoming wins when it's a real quote; otherwise keep the last usable
+      // print. First-seen unknown still resolves null (RQ rejects undefined).
+      const value: QuoteRow | null = usableQuote(byKey.get(key)) ?? usableQuote(prev);
+      this.queryClient.setQueryData(qk, value);
       this.inFlight.delete(flightKey);
       deferred.resolve(value);
     }

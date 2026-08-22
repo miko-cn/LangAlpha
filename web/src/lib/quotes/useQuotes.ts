@@ -8,7 +8,8 @@
  * one HTTP call and fans the result back out across the per-symbol keys.
  *
  * Missing rows (unknown/unresolvable symbols the backend drops) surface as
- * `quote === undefined` — never an error.
+ * `quote === undefined` — never an error. A later empty/failed poll keeps
+ * the last usable quote instead of flashing N/A.
  */
 import { useCallback, useMemo } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
@@ -71,6 +72,9 @@ export function useQuotes(symbols: string[], options: UseQuotesOptions = {}): Us
       staleTime,
       refetchInterval: enabled ? refetchInterval : (false as const),
       refetchIntervalInBackground: false,
+      // Keep the last paint visible while a poll is in flight so a 60s
+      // closed-market refetch can't flash empty before the batcher lands.
+      placeholderData: (previousData) => previousData,
     })),
   });
 

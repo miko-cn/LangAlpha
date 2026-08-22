@@ -30,6 +30,12 @@ _TTL_CLOSED_MAX = 72 * 3600
 # Negative cache: a symbol no provider resolved. Without it every request
 # for an unknown symbol re-fans out across the whole provider chain.
 _TTL_NEGATIVE = 30
+# Last-good sidecar outlives the phase TTL so a failed refetch still has
+# something to serve (weekend / Yahoo TLS blip). Sliding 7d on each success.
+_LAST_TTL = 7 * 24 * 3600
+# Re-fill cadence after serving stale — short so we retry upstream soon,
+# long enough that an outage doesn't stampede every poll.
+_TTL_STALE_RETRY = _TTL_NEGATIVE
 _NO_DATA = {"__no_data__": True}
 
 # Cached-row contract version. The closed-phase TTL freezes a row for up to
@@ -39,7 +45,7 @@ _NO_DATA = {"__no_data__": True}
 # in-flight dedup absorbs the stampede); orphaned old-version keys expire on
 # their own. v2: rows gained regular_close / last_minute_close / exact
 # dollar early-late changes.
-_QUOTE_SCHEMA_VERSION = 2
+_QUOTE_SCHEMA_VERSION = 3
 
 
 def _quote_ttl(ref: InstrumentRef, now: Optional[datetime] = None) -> int:
@@ -63,6 +69,16 @@ def _quote_ttl(ref: InstrumentRef, now: Optional[datetime] = None) -> int:
 
 def _normalize(symbol: str) -> str:
     return str(symbol).strip().upper().removeprefix("^")
+
+
+def _usable_row(row: Any) -> bool:
+    """True if *row* is a real quote (price > 0), not a negative sentinel."""
+    if not isinstance(row, dict) or row.get("__no_data__"):
+        return False
+    try:
+        return float(row.get("price")) > 0
+    except (TypeError, ValueError):
+        return False
 
 
 class QuoteCacheService:
@@ -94,6 +110,10 @@ class QuoteCacheService:
     def quote_key(ref: InstrumentRef) -> str:
         return f"quote:v{_QUOTE_SCHEMA_VERSION}:{ref.instrument_key}"
 
+    @staticmethod
+    def last_key(ref: InstrumentRef) -> str:
+        return f"{QuoteCacheService.quote_key(ref)}:last"
+
     async def get_quotes(
         self,
         symbols: List[str],
@@ -102,10 +122,12 @@ class QuoteCacheService:
     ) -> List[Dict[str, Any]]:
         """Return snapshot rows for *symbols* in request order.
 
-        Symbols that no provider can resolve are dropped (no null-field
-        rows). One MGET serves cache hits; all misses fill via a single
-        batched provider call; concurrent requests for the same instrument
-        share one upstream fetch.
+        Symbols that no provider can resolve *and* that have never produced
+        a last-good row are dropped (no null-field rows). One MGET serves
+        cache hits; all misses fill via a single batched provider call;
+        concurrent requests for the same instrument share one upstream
+        fetch. A failed / empty fill serves the last-good sidecar instead
+        of wiping the quote.
         """
         is_index = asset_type == "indices"
         request: list[tuple[str, InstrumentRef, str]] = []
@@ -194,30 +216,64 @@ class QuoteCacheService:
         stock_refs = [ref for _, ref, _ in to_fetch if ref.asset_class is not AssetClass.INDEX]
 
         rows_by_legacy: Dict[str, Dict[str, Any]] = {}
-        for refs, atype in ((stock_refs, "stocks"), (index_refs, "indices")):
-            if not refs:
-                continue
-            # Providers speak the legacy API form (bare family for indexes) —
-            # a ^-marked spelling from the boundary is not a provider symbol.
-            legacy_syms = list(dict.fromkeys(to_legacy_api(r) for r in refs))
-            raw = await provider.get_snapshots(legacy_syms, asset_type=atype, user_id=user_id)
-            for r in raw or []:
-                rows_by_legacy[_normalize(r.get("symbol") or "")] = r
+        fetch_failed = False
+        try:
+            for refs, atype in ((stock_refs, "stocks"), (index_refs, "indices")):
+                if not refs:
+                    continue
+                # Providers speak the legacy API form (bare family for indexes) —
+                # a ^-marked spelling from the boundary is not a provider symbol.
+                legacy_syms = list(dict.fromkeys(to_legacy_api(r) for r in refs))
+                raw = await provider.get_snapshots(legacy_syms, asset_type=atype, user_id=user_id)
+                for r in raw or []:
+                    rows_by_legacy[_normalize(r.get("symbol") or "")] = r
+        except Exception as exc:
+            # CancelledError is BaseException — still unwinds. A provider
+            # outage falls through to last-good instead of 500-ing the board.
+            fetch_failed = True
+            logger.warning("quote_cache.fetch_failed | err=%s", exc)
 
         cache = get_cache_client()
+        missing = [
+            (sym, ref, key)
+            for sym, ref, key in to_fetch
+            if not _usable_row(rows_by_legacy.get(_normalize(to_legacy_api(ref))))
+        ]
+        lasts: Dict[str, Dict[str, Any]] = {}
+        if missing:
+            last_hits = await cache.mget([self.last_key(ref) for _, ref, _ in missing])
+            for (_, _, key), hit in zip(missing, last_hits):
+                if _usable_row(hit):
+                    lasts[key] = hit
+
         out: Dict[str, Dict[str, Any]] = {}
         writes: list[tuple[str, Any, int]] = []
         for sym, ref, key in to_fetch:
             # Read back via the ref-derived legacy spelling so every alias of
             # one instrument (e.g. ^IXIC / ^COMP) finds its row.
             row = rows_by_legacy.get(_normalize(to_legacy_api(ref)))
-            if row is None:
-                writes.append((key, _NO_DATA, _TTL_NEGATIVE))
+            if _usable_row(row):
+                out[sym] = row
+                writes.append((key, row, _quote_ttl(ref)))
+                writes.append((self.last_key(ref), row, _LAST_TTL))
                 continue
-            out[sym] = row
-            writes.append((key, row, _quote_ttl(ref)))
+            last = lasts.get(key)
+            if last is not None:
+                served = dict(last)
+                served["is_stale"] = True
+                out[sym] = served
+                # Retry soon; never negative-cache a symbol that has last-good.
+                writes.append((key, served, _TTL_STALE_RETRY))
+                writes.append((self.last_key(ref), last, _LAST_TTL))
+                logger.warning("quote_cache.stale_if_error | key=%s", ref.instrument_key)
+                continue
+            # Outage ≠ unknown ticker. Skip the negative sentinel so the
+            # next poll retries instead of locking an empty board for 30s.
+            if not fetch_failed:
+                writes.append((key, _NO_DATA, _TTL_NEGATIVE))
         # One pipelined round trip on one connection. The former gather of
         # per-key set() took a connection each, so a 250-symbol fill — the
         # batch cap — could exhaust a 150-slot pool from a single request.
-        await cache.set_many(writes)
+        if writes:
+            await cache.set_many(writes)
         return out
