@@ -17,19 +17,20 @@ import type { NewsSentimentItem } from '../../utils/newsItem';
 import { RowAttachButton } from '../../components/RowAttachButton';
 import type { WidgetRenderProps } from '../types';
 
-type NewsFeedSource = 'top' | 'market' | 'portfolio' | 'watchlist';
+type NewsFeedSource = 'top' | 'cn' | 'market' | 'portfolio' | 'watchlist';
 type NewsFeedConfig = { source?: NewsFeedSource; limit?: number };
 
 type DateRangeKey = 'all' | '1h' | '6h' | '24h' | '7d';
 
 const SOURCE_KEY: Record<NewsFeedSource, string> = {
   top: 'dashboard.widgets.newsFeed.tab_top',
+  cn: 'dashboard.widgets.newsFeed.tab_cn',
   market: 'dashboard.widgets.newsFeed.tab_market',
   portfolio: 'dashboard.widgets.newsFeed.tab_portfolio',
   watchlist: 'dashboard.widgets.newsFeed.tab_watchlist',
 };
 
-const SOURCES: NewsFeedSource[] = ['top', 'market', 'portfolio', 'watchlist'];
+const SOURCES: NewsFeedSource[] = ['top', 'cn', 'market', 'portfolio', 'watchlist'];
 
 const DATE_RANGES: { key: DateRangeKey; labelKey: string }[] = [
   { key: 'all', labelKey: 'dashboard.widgets.newsFeed.range_all' },
@@ -184,6 +185,7 @@ function NewsFeedWidget({ instance, updateConfig }: WidgetRenderProps<NewsFeedCo
 
   const sources: Record<NewsFeedSource, { items: NewsItem[]; loading: boolean }> = {
     top: { items: dashboard.curatedItems as NewsItem[], loading: dashboard.curatedLoading },
+    cn: { items: dashboard.cnNewsItems as NewsItem[], loading: dashboard.cnNewsLoading },
     market: { items: dashboard.newsItems as NewsItem[], loading: dashboard.newsLoading },
     portfolio: { items: portfolioNews.items as NewsItem[], loading: portfolioNews.loading },
     watchlist: { items: watchlistNews.items as NewsItem[], loading: watchlistNews.loading },
@@ -502,7 +504,9 @@ function NewsFeedWidget({ instance, updateConfig }: WidgetRenderProps<NewsFeedCo
                       ? t('dashboard.widgets.newsFeed.emptyMarket')
                       : activeTab === 'top'
                         ? t('dashboard.widgets.newsFeed.emptyTop')
-                        : t('dashboard.widgets.newsFeed.emptyAddTo', { label: t(SOURCE_KEY[activeTab]).toLowerCase() })}
+                        : activeTab === 'cn'
+                          ? t('dashboard.widgets.newsFeed.emptyCn')
+                          : t('dashboard.widgets.newsFeed.emptyAddTo', { label: t(SOURCE_KEY[activeTab]).toLowerCase() })}
                 </div>
               </div>
             ) : (

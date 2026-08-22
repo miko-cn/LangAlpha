@@ -246,8 +246,10 @@ export const EarningsConfigSchema = z.object({
 });
 
 export const INSIGHT_BRIEF_VARIANTS = ['latest', 'personalized'] as const;
+export const INSIGHT_BRIEF_FOCI = ['us', 'cn'] as const;
 export const InsightBriefConfigSchema = z.object({
   variant: z.enum(INSIGHT_BRIEF_VARIANTS).optional().catch('latest'),
+  focus: z.enum(INSIGHT_BRIEF_FOCI).optional(),
 });
 
 export const ConversationConfigSchema = z.object({}).catch({});
@@ -260,7 +262,7 @@ export const MarketsOverviewConfigSchema = z.object({
   indices: z.array(z.string().min(1)).optional().catch([]),
 });
 
-export const NEWS_FEED_SOURCES = ['top', 'market', 'portfolio', 'watchlist'] as const;
+export const NEWS_FEED_SOURCES = ['top', 'cn', 'market', 'portfolio', 'watchlist'] as const;
 export const NewsFeedConfigSchema = z.object({
   source: z.enum(NEWS_FEED_SOURCES).optional().catch('market'),
   limit: intInRange(50, 1, 200).optional().catch(50),

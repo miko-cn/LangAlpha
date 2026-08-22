@@ -32,6 +32,8 @@ function baseCtx(overrides: Record<string, unknown> = {}) {
     dashboard: {
       curatedItems: [makeItem('c1', 'Curated headline one', 'Bloomberg'), makeItem('c2', 'Curated headline two', 'Reuters')],
       curatedLoading: false,
+      cnNewsItems: [makeItem('cn1', 'Mainland headline', '财联社')],
+      cnNewsLoading: false,
       newsItems: [makeItem('m1', 'Market headline', 'CNBC')],
       newsLoading: false,
     },
@@ -91,7 +93,7 @@ describe('NewsFeedWidget', () => {
       tickers: [], favicon: null, image: null, isHot: false, articleUrl: 'https://x',
     };
     ctx = baseCtx({
-      dashboard: { curatedItems: [recent, old], curatedLoading: false, newsItems: [], newsLoading: false },
+      dashboard: { curatedItems: [recent, old], curatedLoading: false, cnNewsItems: [], cnNewsLoading: false, newsItems: [], newsLoading: false },
     });
     renderWidget({ source: 'top' });
 
@@ -110,6 +112,7 @@ describe('NewsFeedWidget', () => {
   it('exposes "top" in the Zod source enum and the default config round-trips', () => {
     const def = getWidget('news.feed')!;
     expect(def.configSchema!.safeParse({ source: 'top', limit: 50 }).success).toBe(true);
+    expect(def.configSchema!.safeParse({ source: 'cn' }).success).toBe(true);
     expect(def.configSchema!.safeParse(def.defaultConfig).success).toBe(true);
   });
 });

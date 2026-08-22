@@ -29,6 +29,8 @@ interface AIDailyBriefCardProps {
   onReadFull?: (marketInsightId: string) => void;
   /** Widget instance id — when provided, per-row paperclip attach buttons render. */
   instanceId?: string;
+  /** Market focus for on-demand personalized generation. */
+  focus?: 'us' | 'cn';
 }
 
 interface TypeConfigEntry {
@@ -127,7 +129,7 @@ function MobileTopicRow({ topics }: { topics: InsightTopic[] }) {
   );
 }
 
-function AIDailyBriefCard({ onReadFull, instanceId }: AIDailyBriefCardProps) {
+function AIDailyBriefCard({ onReadFull, instanceId, focus }: AIDailyBriefCardProps) {
   const { t } = useTranslation();
   const [insights, setInsights] = useState<Insight[]>(insightsCache || []);
   const [loading, setLoading] = useState(!insightsCache);
@@ -170,7 +172,12 @@ function AIDailyBriefCard({ onReadFull, instanceId }: AIDailyBriefCardProps) {
     setGenerating(true);
     setGenerateError(null);
     try {
-      const row = await generatePersonalizedInsight() as unknown as Insight;
+      const locale = i18n.language.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+      const resolvedFocus = focus ?? (locale === 'zh' ? 'cn' : 'us');
+      const row = await generatePersonalizedInsight({
+        focus: resolvedFocus,
+        locale,
+      }) as unknown as Insight;
       if (!row?.market_insight_id) return;
       const insightId = row.market_insight_id;
 
@@ -225,7 +232,7 @@ function AIDailyBriefCard({ onReadFull, instanceId }: AIDailyBriefCardProps) {
     } finally {
       setGenerating(false);
     }
-  }, [generating, onReadFull, t]);
+  }, [generating, onReadFull, t, focus]);
 
   if (loading) {
     return (

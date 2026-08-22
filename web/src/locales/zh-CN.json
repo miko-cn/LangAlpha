@@ -816,12 +816,18 @@
       },
       "insightBrief": {
         "title": "AI 每日简报",
-        "description": "自动生成的市场洞察，附\"阅读完整简报\"入口。"
+        "title_cn": "AI 每日简报 · 内地",
+        "description": "自动生成的市场洞察，附\"阅读完整简报\"入口。",
+        "focus": "市场焦点",
+        "focus_us": "美股",
+        "focus_cn": "内地 / 港股",
+        "focusHelper": "个性化简报按此焦点生成。系统定时简报语言由服务端 market_insight.focus / locale 决定。"
       },
       "newsFeed": {
         "title": "新闻动态",
-        "description": "热门 / 市场 / 持仓 / 自选新闻，支持标的、来源与时间筛选。",
+        "description": "热门 / 内地 / 市场 / 持仓 / 自选新闻，支持标的、来源与时间筛选。",
         "tab_top": "热门",
+        "tab_cn": "内地",
         "tab_market": "市场",
         "tab_portfolio": "持仓",
         "tab_watchlist": "自选",
@@ -839,6 +845,7 @@
         "emptyFiltered": "无符合筛选条件的新闻",
         "emptyMarket": "暂无市场新闻",
         "emptyTop": "暂无热门新闻",
+        "emptyCn": "暂无内地新闻",
         "emptyAddTo": "添加到{{label}}以查看新闻"
       },
       "earningsCalendar": {

@@ -326,6 +326,24 @@
         }
       }
     },
+    "searxng": {
+      "display_name": "SearXNG",
+      "env_key": "SEARXNG_URL",
+      "capabilities": {
+        "search": {
+          "tracking_name": "SearxngSearchTool",
+          "default_level": "standard",
+          "levels": [
+            {
+              "name": "standard",
+              "display_name": "Standard",
+              "credits": 0,
+              "native_params": {}
+            }
+          ]
+        }
+      }
+    },
     "inhouse": {
       "display_name": "Built-in",
       "env_key": null,

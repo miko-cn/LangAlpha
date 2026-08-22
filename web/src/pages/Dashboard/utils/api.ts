@@ -578,8 +578,14 @@ export async function getInsightDetail(marketInsightId: string): Promise<Record<
   return data;
 }
 
-export async function generatePersonalizedInsight(): Promise<Record<string, unknown>> {
-  const { data } = await api.post('/api/v1/insights/generate');
+export async function generatePersonalizedInsight(opts?: {
+  focus?: 'us' | 'cn';
+  locale?: 'en' | 'zh';
+}): Promise<Record<string, unknown>> {
+  const params: Record<string, string> = {};
+  if (opts?.focus) params.focus = opts.focus;
+  if (opts?.locale) params.locale = opts.locale;
+  const { data } = await api.post('/api/v1/insights/generate', null, { params });
   return data;
 }
 

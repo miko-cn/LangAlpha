@@ -30,6 +30,8 @@ interface DashboardData {
   curatedHasNextPage: boolean;
   curatedIsFetchingNextPage: boolean;
   curatedFetchNextPage: () => void;
+  cnNewsItems: NewsItem[];
+  cnNewsLoading: boolean;
   marketStatus: MarketStatusData | null;
   marketStatusRef: { current: MarketStatusData | null };
 }
@@ -139,6 +141,18 @@ export function useDashboardData(): DashboardData {
     return mapNewsResults(unique);
   }, [curated.data]);
 
+  // 5. Mainland feed (Eastmoney 7×24 + CLS) — same poller/cache path as Top.
+  const { data: cnNewsItems = [], isLoading: cnNewsLoading } = useQuery<NewsItem[]>({
+    queryKey: ['dashboard', 'cnNews'],
+    queryFn: async (): Promise<NewsItem[]> => {
+      const data = await getNews({ provider: 'eastmoney', limit: 50 });
+      return data.results?.length ? mapNewsResults(data.results) : [];
+    },
+    staleTime: NEWS_STALE_MS,
+    refetchInterval: NEWS_POLL_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+  });
+
   return {
     indices,
     indicesLoading,
@@ -151,6 +165,8 @@ export function useDashboardData(): DashboardData {
     curatedFetchNextPage: () => {
       void curated.fetchNextPage();
     },
+    cnNewsItems,
+    cnNewsLoading,
     marketStatus,
     // Kept for backward compatibility with components that might use MarketStatusRef
     marketStatusRef: { current: marketStatus }

@@ -353,6 +353,21 @@ class TestPerRequestBuilders:
 
         assert build_web_search_tool() is not build_web_search_tool()
 
+    def test_searxng_builder_returns_fresh_tools(self):
+        from src.tools.web.providers.searxng import build_web_search_tool
+
+        assert build_web_search_tool() is not build_web_search_tool()
+
+    @pytest.mark.asyncio
+    async def test_missing_searxng_url_is_a_per_call_error(self, monkeypatch):
+        monkeypatch.delenv("SEARXNG_URL", raising=False)
+        from src.tools.web.providers.searxng import build_web_search_tool
+
+        tool = build_web_search_tool(max_results=1)
+        content, artifact = await tool.coroutine(query="anything")
+        assert "error" in artifact
+        assert isinstance(content, str)
+
     @pytest.mark.asyncio
     async def test_missing_tavily_api_key_is_a_per_call_error(self, monkeypatch):
         """The API wrapper is created lazily inside the tool call, so a

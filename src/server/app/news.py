@@ -243,15 +243,19 @@ async def get_news_article(article_id: str, user_id: CurrentUserId):
     if article:
         return NewsArticle(**article)
 
-    # TickerTick is targeted directly (not in the chain) — try it for its rows.
+    # Named sources targeted directly (not always in the fallback chain).
     try:
         from src.data_client import get_news_source
 
-        tickertick = await get_news_source("tickertick")
-        article = await tickertick.get_news_article(article_id, user_id=user_id)
-        if article:
-            return NewsArticle(**article)
+        for name in ("tickertick", "eastmoney"):
+            try:
+                source = await get_news_source(name)
+                article = await source.get_news_article(article_id, user_id=user_id)
+                if article:
+                    return NewsArticle(**article)
+            except Exception:
+                logger.debug("news.%s.article_lookup_failed", name, exc_info=True)
     except Exception:
-        logger.debug("news.tickertick.article_lookup_failed", exc_info=True)
+        logger.debug("news.named_source.article_lookup_failed", exc_info=True)
 
     raise HTTPException(status_code=404, detail="Article not found")

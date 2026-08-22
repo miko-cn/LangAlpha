@@ -1,8 +1,9 @@
 """API routes for AI market insights."""
 
 import logging
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from src.server.database import market_insight as market_insight_db
 from src.server.dependencies.usage_limits import enforce_credit_limit
@@ -56,7 +57,15 @@ async def get_insight_detail(market_insight_id: str, user_id: CurrentUserId):
     status_code=202,
 )
 @handle_api_exceptions("generate personalized insight", logger)
-async def generate_personalized_insight(user_id: CurrentUserId):
+async def generate_personalized_insight(
+    user_id: CurrentUserId,
+    focus: Literal["us", "cn"] | None = Query(
+        None, description="Market focus override (us | cn)"
+    ),
+    locale: Literal["en", "zh"] | None = Query(
+        None, description="Output language override (en | zh)"
+    ),
+):
     """Request personalized insight generation.
 
     Returns 202 immediately with the generating row.
@@ -68,7 +77,9 @@ async def generate_personalized_insight(user_id: CurrentUserId):
     service = InsightService.get_instance()
 
     try:
-        result = await service.generate_for_user(user_id)
+        result = await service.generate_for_user(
+            user_id, focus=focus, locale=locale
+        )
     except InsightAlreadyGeneratingError as e:
         if e.existing_insight.get("retry"):
             raise HTTPException(status_code=409, detail="Please try again")

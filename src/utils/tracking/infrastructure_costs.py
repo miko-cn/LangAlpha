@@ -108,6 +108,7 @@ TOOL_TO_SERVICE_MAPPING = {
     "SerperSearchTool": "serper_search",
     "ExaSearchTool": "exa_search",
     "ParallelSearchTool": "parallel_search",
+    "SearxngSearchTool": "searxng_search",
     "ExaFetchTool": "exa_fetch",
     "ParallelFetchTool": "parallel_fetch",
     "FirecrawlFetchTool": "firecrawl_fetch",

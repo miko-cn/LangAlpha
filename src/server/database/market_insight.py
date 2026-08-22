@@ -272,6 +272,40 @@ async def get_user_recent_completed_insight(
             return dict(row) if row else None
 
 
+async def get_latest_completed_insight(
+    type: Optional[str] = None, user_id: Optional[str] = None
+) -> Optional[dict]:
+    """Most recent completed insight row (for focus/locale-aware dedup)."""
+    async with get_db_connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            conditions = ["status = 'completed'"]
+            params: list = []
+
+            if type is not None:
+                conditions.append("type = %s")
+                params.append(type)
+
+            if user_id is None:
+                conditions.append("user_id IS NULL")
+            else:
+                conditions.append("user_id = %s")
+                params.append(user_id)
+
+            where = " AND ".join(conditions)
+            await cur.execute(
+                f"""
+                SELECT {ALL_COLUMNS}
+                FROM market_insights
+                WHERE {where}
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                params,
+            )
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+
 async def get_latest_completed_at(
     type: Optional[str] = None, user_id: Optional[str] = None
 ) -> Optional[datetime]:

@@ -37,9 +37,17 @@ DEFAULT_GENERATION_TIMEOUT = 600
 DEFAULT_DEDUP_WINDOW_MINUTES = 5
 
 
+_VALID_FOCI = frozenset({"us", "cn"})
+_VALID_LOCALES = frozenset({"en", "zh"})
+
 _TAIL = (
     "Only include genuinely noteworthy stories. "
     "Report facts, not predictions or recommendations. US market focus."
+)
+
+_TAIL_CN = (
+    "只收录真正重要的新闻。"
+    "陈述事实，不做预测或投资建议。聚焦 A 股、港股与内地宏观政策。"
 )
 
 _JSON_GUIDELINES = """
@@ -58,57 +66,202 @@ The JSON must have exactly these fields:
 Include 4-8 news_items and 3-5 topics. Respond with ONLY the JSON object.
 """
 
+_JSON_GUIDELINES_ZH = """
+你必须只输出一个合法 JSON 对象（不要 markdown、不要解释、不要前言）。
+JSON 必须恰好包含这些字段，所有字符串用中文撰写：
+{
+  "headline": "概括当日主导市场主题的标题（最多 120 字）",
+  "summary": "用 2-3 句话概述最重要的进展",
+  "news_items": [
+    {"title": "短标题", "body": "2-4 句事实摘要", "url": "来源链接或 null"}
+  ],
+  "topics": [
+    {"text": "主题（1-4 字）", "trend": "up|down|neutral"}
+  ]
+}
+包含 4-8 条 news_items 和 3-5 个 topics。只输出 JSON 对象。
+"""
 
-def _build_instruction(insight_type: str, now_et: datetime) -> str:
+
+def normalize_focus(value: str | None) -> str:
+    if value and value.lower() in _VALID_FOCI:
+        return value.lower()
+    return "us"
+
+
+def normalize_locale(value: str | None, *, focus: str) -> str:
+    if value:
+        v = value.lower()
+        if v.startswith("zh"):
+            return "zh"
+        if v.startswith("en"):
+            return "en"
+    return "zh" if focus == "cn" else "en"
+
+
+def _insight_focus_locale(row: dict) -> tuple[str, str]:
+    """Read stored focus/locale; missing metadata is the historical us/en default."""
+    meta = row.get("metadata") or {}
+    if isinstance(meta, str):
+        try:
+            meta = json.loads(meta)
+        except json.JSONDecodeError:
+            meta = {}
+    if not isinstance(meta, dict):
+        meta = {}
+    return meta.get("focus", "us"), meta.get("locale", "en")
+
+
+def _json_guidelines(locale: str) -> str:
+    return _JSON_GUIDELINES_ZH if locale == "zh" else _JSON_GUIDELINES
+
+
+def _tail(focus: str, locale: str) -> str:
+    if locale == "zh":
+        return _TAIL_CN if focus == "cn" else (
+            "只收录真正重要的新闻。陈述事实，不做预测或投资建议。聚焦美股。"
+        )
+    if focus == "cn":
+        return (
+            "Only include genuinely noteworthy stories. "
+            "Report facts, not predictions or recommendations. "
+            "Focus on mainland China, Hong Kong, and CN macro policy."
+        )
+    return _TAIL
+
+
+def _tz_label(now: datetime, focus: str) -> str:
+    if focus == "cn":
+        return now.tzname() or "CST"
+    return "ET"
+
+
+def _format_now(now: datetime, locale: str, focus: str) -> str:
+    label = _tz_label(now, focus)
+    if locale == "zh":
+        weekdays = "一二三四五六日"
+        return (
+            f"{now.strftime('%Y年%-m月%-d日')}星期{weekdays[now.weekday()]} "
+            f"{now.strftime('%-H:%M')} {label}"
+        )
+    return now.strftime(f"%A, %B %-d, %Y %-I:%M %p {label}")
+
+
+def _format_date(now: datetime, locale: str) -> str:
+    if locale == "zh":
+        weekdays = "一二三四五六日"
+        return f"{now.strftime('%Y年%-m月%-d日')}星期{weekdays[now.weekday()]}"
+    return now.strftime("%A, %B %-d, %Y")
+
+
+def _build_instruction(
+    insight_type: str,
+    now_et: datetime,
+    *,
+    focus: str = "us",
+    locale: str = "en",
+) -> str:
     """Build the research instruction for the given job type."""
-    time_str = now_et.strftime("%A, %B %-d, %Y %-I:%M %p ET")
-    today_date = now_et.strftime("%A, %B %-d, %Y")
+    time_str = _format_now(now_et, locale, focus)
+    today_date = _format_date(now_et, locale)
+    tail = _tail(focus, locale)
+    market = (
+        "A-share / Hong Kong / mainland-China macro"
+        if focus == "cn" and locale == "en"
+        else "A股、港股与内地宏观"
+        if focus == "cn"
+        else "US financial market"
+        if locale == "en"
+        else "美股"
+    )
 
     if insight_type == "pre_market":
         yesterday = now_et - timedelta(days=1)
-        yesterday_date = yesterday.strftime("%A, %B %-d, %Y")
+        yesterday_date = _format_date(yesterday, locale)
+        if locale == "zh":
+            return (
+                f"当前时间：{time_str}\n\n"
+                f"梳理昨夜（{yesterday_date} 约 20:00）至今早最重要的{market}新闻。"
+                f"每条给一个短标题和 2-4 句事实摘要。{tail}"
+            )
         return (
             f"Current time: {time_str}\n\n"
-            f"Curate the most significant US financial market news "
-            f"from last night ({yesterday_date} ~8 PM ET) through this morning. "
+            f"Curate the most significant {market} news "
+            f"from last night ({yesterday_date} ~8 PM {_tz_label(now_et, focus)}) "
+            f"through this morning. "
             f"For each story, provide a short headline and a 2-4 sentence "
-            f"factual summary of what happened. {_TAIL}"
+            f"factual summary of what happened. {tail}"
         )
 
     if insight_type == "market_update":
+        if locale == "zh":
+            window_end = now_et.strftime("%-H:%M")
+            window_start = (now_et - timedelta(hours=1)).strftime("%-H:%M")
+            return (
+                f"当前时间：{time_str}\n\n"
+                f"梳理过去一小时（{window_start} – {window_end}）最重要的{market}新闻。"
+                f"每条给一个短标题和 2-4 句事实摘要。{tail}"
+            )
         window_end = now_et.strftime("%-I:%M %p")
         window_start = (now_et - timedelta(hours=1)).strftime("%-I:%M %p")
         return (
             f"Current time: {time_str}\n\n"
-            f"Curate the most significant US financial market news from the "
-            f"past hour ({window_start} – {window_end} ET). "
+            f"Curate the most significant {market} news from the "
+            f"past hour ({window_start} – {window_end} {_tz_label(now_et, focus)}). "
             f"For each story, provide a short headline and a 2-4 sentence "
-            f"factual summary of what happened. {_TAIL}"
+            f"factual summary of what happened. {tail}"
         )
 
-    # post_market
+    if locale == "zh":
+        return (
+            f"当前时间：{time_str}\n\n"
+            f"梳理今日（{today_date}）最重要的{market}新闻，作收盘综述。"
+            f"每条给一个短标题和 2-4 句事实摘要。{tail}"
+        )
     return (
         f"Current time: {time_str}\n\n"
-        f"Curate the most significant US financial market news from today "
+        f"Curate the most significant {market} news from today "
         f"({today_date}) for an end-of-day recap. "
         f"For each story, provide a short headline and a 2-4 sentence "
-        f"factual summary of what happened. {_TAIL}"
+        f"factual summary of what happened. {tail}"
     )
 
 
 def _build_personalized_instruction(
-    symbols_context: str, now_et: datetime
+    symbols_context: str,
+    now_et: datetime,
+    *,
+    focus: str = "us",
+    locale: str = "en",
 ) -> str:
     """Build a personalized insight prompt with watchlist/portfolio context."""
-    time_str = now_et.strftime("%A, %B %-d, %Y %-I:%M %p ET")
+    time_str = _format_now(now_et, locale, focus)
+    tail = _tail(focus, locale)
+    if locale == "zh":
+        extra = (
+            "优先覆盖 A 股 / 港股及相关内地政策；美股仅在持仓或自选包含时展开。"
+            if focus == "cn"
+            else "优先覆盖所列标的的直接相关新闻。"
+        )
+        return (
+            f"当前时间：{time_str}\n\n"
+            f"根据用户持仓和自选生成个性化简报。覆盖这些标的的近期新闻、"
+            f"价格波动与重要进展：\n\n{symbols_context}\n\n"
+            f"每条相关新闻给一个短标题和 2-4 句事实摘要。{extra} {tail}"
+        )
+    extra = (
+        "Prioritize A-share / HK names and mainland policy; "
+        "cover US names only when they appear in the list."
+        if focus == "cn"
+        else "Prioritize stories that directly affect the listed symbols."
+    )
     return (
         f"Current time: {time_str}\n\n"
         f"Generate a personalized market brief focused on the user's portfolio "
         f"and watchlist. Cover the most significant recent news, price movements, "
         f"and developments for these holdings:\n\n{symbols_context}\n\n"
         f"For each relevant story, provide a short headline and a 2-4 sentence "
-        f"factual summary. Prioritize stories that directly affect the listed "
-        f"symbols. {_TAIL}"
+        f"factual summary. {extra} {tail}"
     )
 
 
@@ -278,6 +431,8 @@ class InsightService:
         self._update_start = datetime.strptime("10:00", "%H:%M").time()
         self._update_end = datetime.strptime("20:00", "%H:%M").time()
         self._update_interval_min = 60
+        self._focus = "us"
+        self._locale = "en"
 
     async def start(self) -> None:
         """Load config and start the schedule loop."""
@@ -311,6 +466,9 @@ class InsightService:
             self._update_interval_min = schedule.get(
                 "market_update_interval", 60
             )
+
+        self._focus = normalize_focus(config.get("focus"))
+        self._locale = normalize_locale(config.get("locale"), focus=self._focus)
 
         if not self._enabled:
             logger.info("[MARKET_INSIGHT] Disabled by config")
@@ -361,39 +519,66 @@ class InsightService:
     # Per-user on-demand generation
     # ------------------------------------------------------------------
 
-    async def generate_for_user(self, user_id: str) -> dict:
+    async def generate_for_user(
+        self,
+        user_id: str,
+        *,
+        focus: str | None = None,
+        locale: str | None = None,
+    ) -> dict:
         """Request personalized insight generation for a user.
 
         Returns the DB row immediately (status='generating').
         The actual agent work runs in a background task.
+        ``focus`` / ``locale`` override the deployment defaults when set.
         """
-        # Dedup: check for recently completed personalized insight
+        resolved_focus = normalize_focus(focus or self._focus)
+        if locale:
+            resolved_locale = normalize_locale(locale, focus=resolved_focus)
+        elif focus:
+            resolved_locale = normalize_locale(None, focus=resolved_focus)
+        else:
+            resolved_locale = self._locale
+
+        # Dedup only matches the same focus/locale — a recent US brief must
+        # not block an immediate CN regenerate after the user flips settings.
         recent = await insight_db.get_user_recent_completed_insight(
             user_id, within_minutes=self._dedup_window_minutes
         )
         if recent:
-            logger.info(
-                f"[MARKET_INSIGHT] Returning recent insight for user {user_id}: "
-                f"{recent['market_insight_id']}"
-            )
-            return recent
+            rf, rl = _insight_focus_locale(recent)
+            if rf == resolved_focus and rl == resolved_locale:
+                logger.info(
+                    f"[MARKET_INSIGHT] Returning recent insight for user {user_id}: "
+                    f"{recent['market_insight_id']}"
+                )
+                return recent
 
         # Fetch context
         symbols_context = await self._build_user_context(user_id)
         now_et = datetime.now(self._tz)
 
         if symbols_context:
-            prompt = _build_personalized_instruction(symbols_context, now_et)
+            prompt = _build_personalized_instruction(
+                symbols_context, now_et, focus=resolved_focus, locale=resolved_locale
+            )
         else:
             # Empty watchlist/portfolio — fall back to generic brief
-            prompt = _build_instruction("market_update", now_et)
+            prompt = _build_instruction(
+                "market_update", now_et, focus=resolved_focus, locale=resolved_locale
+            )
 
         # Atomic idempotency: try to insert, handle conflict from partial unique index
         row = await insight_db.create_market_insight_if_not_generating(
             model="flash",
             type="personalized",
             user_id=user_id,
-            metadata={"schema_version": 3, "has_context": bool(symbols_context)},
+            metadata={
+                "schema_version": 3,
+                "has_context": bool(symbols_context),
+                "focus": resolved_focus,
+                "locale": resolved_locale,
+            },
         )
         if row is None:
             # Another request already created a generating row
@@ -406,7 +591,9 @@ class InsightService:
                 user_id, within_minutes=1
             )
             if recent:
-                return recent
+                rf, rl = _insight_focus_locale(recent)
+                if rf == resolved_focus and rl == resolved_locale:
+                    return recent
             # Truly unknown state — ask caller to retry
             raise InsightAlreadyGeneratingError({"retry": True})
 
@@ -414,7 +601,9 @@ class InsightService:
 
         # Fire background task and return immediately
         asyncio.create_task(
-            self._run_personalized_generation(user_id, insight_id, prompt),
+            self._run_personalized_generation(
+                user_id, insight_id, prompt, locale=resolved_locale
+            ),
             name=f"insight_gen_{insight_id}",
         )
 
@@ -425,13 +614,15 @@ class InsightService:
         return row
 
     async def _run_personalized_generation(
-        self, user_id: str, insight_id: str, prompt: str
+        self, user_id: str, insight_id: str, prompt: str, *, locale: str = "en"
     ) -> None:
         """Background task: run flash agent and persist result."""
         start_time = time.monotonic()
         try:
             raw_text = await asyncio.wait_for(
-                _run_flash_agent(prompt + "\n\n" + _JSON_GUIDELINES, user_id=user_id),
+                _run_flash_agent(
+                    prompt + "\n\n" + _json_guidelines(locale), user_id=user_id
+                ),
                 timeout=self._generation_timeout,
             )
             parsed = await self._extract_with_fallback(raw_text, user_id=user_id)
@@ -687,8 +878,20 @@ class InsightService:
             return False  # Timer elapsed normally
 
     async def _is_duplicate(self, job_type: str) -> bool:
-        """Check if a completed insight of this type exists within the staleness window."""
-        latest_at = await insight_db.get_latest_completed_at(type=job_type)
+        """Check if a completed insight of this type exists within the staleness window.
+
+        A recent row with a different focus/locale does not count — flipping
+        ``market_insight.focus`` must be allowed to generate immediately.
+        """
+        row = await insight_db.get_latest_completed_insight(type=job_type)
+        if not row:
+            return False
+
+        rf, rl = _insight_focus_locale(row)
+        if rf != self._focus or rl != self._locale:
+            return False
+
+        latest_at = row.get("completed_at")
         if not latest_at:
             return False
 
@@ -704,9 +907,14 @@ class InsightService:
         self, job_type: str, now_et: datetime
     ) -> None:
         """Generate a single market insight via flash agent."""
-        instruction = _build_instruction(job_type, now_et)
+        instruction = _build_instruction(
+            job_type, now_et, focus=self._focus, locale=self._locale
+        )
 
-        logger.info(f"[MARKET_INSIGHT] Starting {job_type} (flash agent)")
+        logger.info(
+            f"[MARKET_INSIGHT] Starting {job_type} (flash agent) "
+            f"focus={self._focus} locale={self._locale}"
+        )
         start_time = time.monotonic()
 
         # When auth is off (local dev / self-hosted), use the local dev user's
@@ -717,13 +925,21 @@ class InsightService:
         row = await insight_db.create_market_insight(
             model="flash",
             type=job_type,
-            metadata={"instruction": instruction, "schema_version": 3},
+            metadata={
+                "instruction": instruction,
+                "schema_version": 3,
+                "focus": self._focus,
+                "locale": self._locale,
+            },
         )
         insight_id = row["market_insight_id"]
 
         try:
             raw_text = await asyncio.wait_for(
-                _run_flash_agent(instruction + "\n\n" + _JSON_GUIDELINES, user_id=system_user_id),
+                _run_flash_agent(
+                    instruction + "\n\n" + _json_guidelines(self._locale),
+                    user_id=system_user_id,
+                ),
                 timeout=self._generation_timeout,
             )
             parsed = await self._extract_with_fallback(raw_text, user_id=system_user_id)

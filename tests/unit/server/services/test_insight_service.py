@@ -17,9 +17,14 @@ from src.server.services.insight_service import (
     ET,
     InsightAlreadyGeneratingError,
     InsightService,
+    _build_instruction,
+    _build_personalized_instruction,
     _extract_json_string,
     _extract_structured_output,
+    _json_guidelines,
     _llm_extract_fallback,
+    normalize_focus,
+    normalize_locale,
 )
 
 
@@ -418,6 +423,33 @@ class TestGenerateForUser:
 
     @pytest.mark.asyncio
     @patch("src.server.services.insight_service.insight_db")
+    async def test_recent_completed_other_focus_regenerates(self, mock_db):
+        """A recent US brief does not satisfy a CN generate request."""
+        recent = {
+            "market_insight_id": "ins-us",
+            "status": "completed",
+            "metadata": {"focus": "us", "locale": "en"},
+        }
+        mock_db.get_user_recent_completed_insight = AsyncMock(return_value=recent)
+        mock_db.create_market_insight_if_not_generating = AsyncMock(
+            return_value={
+                "market_insight_id": "ins-cn",
+                "status": "generating",
+                "type": "personalized",
+            }
+        )
+
+        svc = InsightService()
+        with patch.object(svc, "_build_user_context", new_callable=AsyncMock, return_value=""):
+            result = await svc.generate_for_user("user-flip", focus="cn", locale="zh")
+
+        assert result["market_insight_id"] == "ins-cn"
+        meta = mock_db.create_market_insight_if_not_generating.call_args.kwargs["metadata"]
+        assert meta["focus"] == "cn"
+        assert meta["locale"] == "zh"
+
+    @pytest.mark.asyncio
+    @patch("src.server.services.insight_service.insight_db")
     @patch("src.server.services.insight_service._run_flash_agent", new_callable=AsyncMock)
     async def test_generate_returns_immediately(self, mock_agent, mock_db):
         """generate_for_user returns the generating row without waiting."""
@@ -589,8 +621,11 @@ class TestSchedule:
         """Recent insight within staleness window is detected as duplicate."""
         svc = InsightService()
         # Completed 10 minutes ago -- within the 4-hour pre_market window
-        mock_db.get_latest_completed_at = AsyncMock(
-            return_value=datetime.now(timezone.utc) - timedelta(minutes=10)
+        mock_db.get_latest_completed_insight = AsyncMock(
+            return_value={
+                "completed_at": datetime.now(timezone.utc) - timedelta(minutes=10),
+                "metadata": {"focus": "us", "locale": "en"},
+            }
         )
 
         assert await svc._is_duplicate("pre_market") is True
@@ -601,8 +636,11 @@ class TestSchedule:
         """Insight older than the staleness window is NOT a duplicate."""
         svc = InsightService()
         # Completed 5 hours ago -- outside the 4-hour pre_market window
-        mock_db.get_latest_completed_at = AsyncMock(
-            return_value=datetime.now(timezone.utc) - timedelta(hours=5)
+        mock_db.get_latest_completed_insight = AsyncMock(
+            return_value={
+                "completed_at": datetime.now(timezone.utc) - timedelta(hours=5),
+                "metadata": {"focus": "us", "locale": "en"},
+            }
         )
 
         assert await svc._is_duplicate("pre_market") is False
@@ -612,9 +650,25 @@ class TestSchedule:
     async def test_is_duplicate_none_means_no_duplicate(self, mock_db):
         """No previous insight means not a duplicate."""
         svc = InsightService()
-        mock_db.get_latest_completed_at = AsyncMock(return_value=None)
+        mock_db.get_latest_completed_insight = AsyncMock(return_value=None)
 
         assert await svc._is_duplicate("market_update") is False
+
+    @pytest.mark.asyncio
+    @patch("src.server.services.insight_service.insight_db")
+    async def test_is_duplicate_ignores_other_focus(self, mock_db):
+        """A recent US brief does not block a CN-focused schedule."""
+        svc = InsightService()
+        svc._focus = "cn"
+        svc._locale = "zh"
+        mock_db.get_latest_completed_insight = AsyncMock(
+            return_value={
+                "completed_at": datetime.now(timezone.utc) - timedelta(minutes=10),
+                "metadata": {"focus": "us", "locale": "en"},
+            }
+        )
+
+        assert await svc._is_duplicate("pre_market") is False
 
     def test_next_job_wraps_to_tomorrow(self):
         """When no jobs remain today, _next_job returns first job tomorrow."""
@@ -806,3 +860,34 @@ class TestExtractJsonString:
     def test_whitespace_stripped(self):
         inner = '{"key": "value"}'
         assert _extract_json_string(f"  {inner}  ") == inner
+
+
+class TestInsightFocusLocale:
+    def test_normalize_defaults(self):
+        assert normalize_focus(None) == "us"
+        assert normalize_focus("CN") == "cn"
+        assert normalize_locale(None, focus="us") == "en"
+        assert normalize_locale(None, focus="cn") == "zh"
+        assert normalize_locale("zh-CN", focus="us") == "zh"
+
+    def test_us_english_prompt_keeps_western_copy(self):
+        now = datetime(2025, 3, 15, 14, 0, tzinfo=ET)
+        text = _build_instruction("market_update", now)
+        assert "US financial market" in text
+        assert "Current time:" in text
+        assert "A股" not in text
+
+    def test_cn_chinese_prompt(self):
+        now = datetime(2025, 3, 15, 14, 0, tzinfo=ET)
+        text = _build_instruction("market_update", now, focus="cn", locale="zh")
+        assert "A股" in text
+        assert "当前时间" in text
+        assert "你必须只输出" in _json_guidelines("zh")
+
+    def test_personalized_cn_mentions_a_shares(self):
+        now = datetime(2025, 3, 15, 14, 0, tzinfo=ET)
+        text = _build_personalized_instruction(
+            "- 600519.SS (贵州茅台)", now, focus="cn", locale="zh"
+        )
+        assert "600519.SS" in text
+        assert "A 股" in text

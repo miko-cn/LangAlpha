@@ -816,12 +816,18 @@
       },
       "insightBrief": {
         "title": "AI Daily Brief",
-        "description": "Auto-generated market insight with a \"Read Full Brief\" CTA."
+        "title_cn": "AI Daily Brief · China",
+        "description": "Auto-generated market insight with a \"Read Full Brief\" CTA.",
+        "focus": "Market focus",
+        "focus_us": "US",
+        "focus_cn": "Mainland / HK",
+        "focusHelper": "Personalized briefs use this focus. Scheduled system briefs follow server market_insight.focus / locale."
       },
       "newsFeed": {
         "title": "News Feed",
-        "description": "Top / Market / Portfolio / Watchlist news with ticker, source + time filters.",
+        "description": "Top / Mainland / Market / Portfolio / Watchlist news with ticker, source + time filters.",
         "tab_top": "Top",
+        "tab_cn": "Mainland",
         "tab_market": "Market",
         "tab_portfolio": "Portfolio",
         "tab_watchlist": "Watchlist",
@@ -839,6 +845,7 @@
         "emptyFiltered": "No news matching filters",
         "emptyMarket": "No market news",
         "emptyTop": "No top news",
+        "emptyCn": "No mainland news",
         "emptyAddTo": "Add to {{label}} to see news"
       },
       "earningsCalendar": {

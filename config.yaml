@@ -283,6 +283,8 @@ news_poll:
       limit: 50
     - provider: null       # Provider-chain general feed / Market tab (news:general:<limit>)
       limit: 50
+    - provider: eastmoney  # Mainland 7×24 (东财 + 财联社) / 内地 tab
+      limit: 50
 
 # RunWorkflow programmatic subagent orchestration
 workflow:
@@ -323,7 +325,13 @@ market_watch:
 # =============================================================================
 market_insight:
   enabled: true
-  timezone: "America/New_York"
+  timezone: "Asia/Shanghai"
+  # Market + language of scheduled (system) briefs. Default us/en keeps
+  # upstream behavior. Set focus=cn locale=zh for mainland-China copy.
+  # Personalized generate can override per request (?focus=&locale=).
+  # Times below are in `timezone` (CST here so 09:00 = A-share open).
+  focus: cn                       # us | cn
+  locale: zh                      # en | zh
   generation_timeout: 600         # Seconds before background generation times out
   max_symbols_context: 20         # Max symbols in personalized prompt context
   dedup_window_minutes: 5         # Dedup window for per-user insights

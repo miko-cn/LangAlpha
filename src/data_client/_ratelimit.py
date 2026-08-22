@@ -48,6 +48,7 @@ class _Spec:
 _BUCKET_SPECS: dict[str, _Spec] = {
     "futu":        _Spec(rate_per_sec=3.0,  burst=5),
     "eastmoney":   _Spec(rate_per_sec=2.0,  burst=4),
+    "cls":         _Spec(rate_per_sec=2.0,  burst=4),
     "tencent":     _Spec(rate_per_sec=2.0,  burst=4),
     "sina":        _Spec(rate_per_sec=2.0,  burst=4),
     "tushare":     _Spec(rate_per_sec=0.5,  burst=2),    # ~30 req/min, wide margin

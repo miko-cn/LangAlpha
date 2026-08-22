@@ -121,6 +121,16 @@ async def _build_tickertick_news_source() -> NewsDataSource:
     return TickerTickNewsSource()
 
 
+def _eastmoney_news_available() -> bool:
+    return True  # free, keyless (Eastmoney 7×24 + CLS)
+
+
+async def _build_eastmoney_news_source() -> NewsDataSource:
+    from .eastmoney.news_source import EastmoneyNewsSource
+
+    return EastmoneyNewsSource()
+
+
 async def _build_futu_source() -> MarketDataSource:
     from .futu.data_source import FutuDataSource
 
@@ -164,6 +174,7 @@ _NEWS_SOURCE_REGISTRY: dict[str, tuple[Any, Any]] = {
     "fmp": (_fmp_available, _build_fmp_news_source),
     "yfinance": (_yfinance_available, _build_yfinance_news_source),
     "tickertick": (_tickertick_available, _build_tickertick_news_source),
+    "eastmoney": (_eastmoney_news_available, _build_eastmoney_news_source),
 }
 
 # ---------------------------------------------------------------------------
