@@ -49,6 +49,33 @@ router = APIRouter(
 )
 
 
+def _to_search_result(item: dict) -> StockSearchResult:
+    return StockSearchResult(
+        symbol=item.get("symbol", ""),
+        name=item.get("name", ""),
+        currency=item.get("currency"),
+        stockExchange=item.get("stockExchange"),
+        exchangeShortName=item.get("exchangeShortName"),
+    )
+
+
+def _merge_search_rows(
+    cn_rows: list[dict], upstream_rows: list[dict], *, limit: int
+) -> list[dict]:
+    """CN suggest first, then FMP/yfinance; dedupe by symbol."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for row in [*cn_rows, *upstream_rows]:
+        symbol = str(row.get("symbol") or "").strip().upper()
+        if not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+        out.append(row)
+        if len(out) >= limit:
+            break
+    return out
+
+
 def _convert_data_points(raw_data: list) -> list[IntradayDataPoint]:
     """Convert raw OHLCV data to IntradayDataPoint models."""
     return [
@@ -448,45 +475,48 @@ async def search_stocks(
         raise HTTPException(status_code=422, detail="Query parameter is required and cannot be empty")
 
     try:
-        from src.utils.cache.redis_cache import get_cache_client
         from src.data_client import get_financial_data_provider
+        from src.data_client.cn.search import has_cjk
+        from src.data_client.cn.search import search as cn_search
+        from src.utils.cache.redis_cache import get_cache_client
 
-        cache = get_cache_client()
-        cache_key = f"search:{query.strip().lower()}:{limit}"
+        q = query.strip()
+        # Eastmoney / Tencent / Sina suggest — 中文 / 拼音缩写 / A+H 代码.
+        # CJK hits are authoritative (FMP/yfinance don't know 茅台). Latin
+        # queries (AAPL, maotai, 600519) merge with the upstream source so
+        # US names still resolve when the CN fan-out misses.
+        cn_raw = await cn_search(q, limit=limit)
+        skip_upstream = bool(cn_raw) and has_cjk(q)
 
-        cached = await cache.get(cache_key)
-        if cached is not None:
-            results = [StockSearchResult(**r) for r in cached["results"]]
-            if exchange:
-                exchange_set = {e.upper() for e in exchange}
-                results = [r for r in results if r.exchangeShortName and r.exchangeShortName.upper() in exchange_set]
-            return StockSearchResponse(query=query.strip(), results=results, count=len(results))
+        upstream_raw: list[dict] = []
+        if not skip_upstream:
+            cache = get_cache_client()
+            cache_key = f"search:{q.lower()}:{limit}"
+            cached = await cache.get(cache_key)
+            if cached is not None:
+                upstream_raw = cached["results"]
+            else:
+                provider = await get_financial_data_provider()
+                if provider.financial is None:
+                    if not cn_raw:
+                        raise HTTPException(status_code=503, detail="No financial data provider available")
+                else:
+                    upstream_raw = await provider.financial.search_stocks(query=q, limit=limit)
+                    await cache.set(
+                        cache_key,
+                        {"results": upstream_raw},
+                        ttl=300,
+                    )
 
-        provider = await get_financial_data_provider()
-        if provider.financial is None:
-            raise HTTPException(status_code=503, detail="No financial data provider available")
-
-        raw_results = await provider.financial.search_stocks(query=query.strip(), limit=limit)
-
-        results = []
-        for item in raw_results:
-            result = StockSearchResult(
-                symbol=item.get("symbol", ""),
-                name=item.get("name", ""),
-                currency=item.get("currency"),
-                stockExchange=item.get("stockExchange"),
-                exchangeShortName=item.get("exchangeShortName"),
-            )
-            results.append(result)
-
-        # Cache unfiltered results
-        await cache.set(cache_key, {"results": [r.model_dump() for r in results]}, ttl=300)
-
+        merged = _merge_search_rows(cn_raw, upstream_raw, limit=limit)
+        results = [_to_search_result(item) for item in merged]
         if exchange:
             exchange_set = {e.upper() for e in exchange}
-            results = [r for r in results if r.exchangeShortName and r.exchangeShortName.upper() in exchange_set]
-
-        return StockSearchResponse(query=query.strip(), results=results, count=len(results))
+            results = [
+                r for r in results
+                if r.exchangeShortName and r.exchangeShortName.upper() in exchange_set
+            ]
+        return StockSearchResponse(query=q, results=results, count=len(results))
 
     except HTTPException:
         raise

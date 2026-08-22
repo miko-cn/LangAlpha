@@ -187,6 +187,9 @@ rate_limit:
     futu:
       rate_per_sec: 3.0
       burst: 5
+    eastmoney:
+      rate_per_sec: 2.0
+      burst: 4
     tencent:
       rate_per_sec: 2.0
       burst: 4
@@ -205,6 +208,15 @@ rate_limit:
     yfinance:
       rate_per_sec: 2.0
       burst: 4
+    szse:
+      rate_per_sec: 0.25
+      burst: 1
+    sse:
+      rate_per_sec: 0.25
+      burst: 1
+    cninfo:
+      rate_per_sec: 0.5
+      burst: 1
   retry:
     max_retries: 2
     base_delay: 2.0

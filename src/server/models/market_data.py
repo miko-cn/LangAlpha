@@ -302,6 +302,7 @@ class StockSearchResult(BaseModel):
     currency: Optional[str] = Field(None, description="Currency code")
     stockExchange: Optional[str] = Field(None, description="Stock exchange name")
     exchangeShortName: Optional[str] = Field(None, description="Short exchange name")
+    assetType: Optional[str] = Field(None, description="stock | index | etf")
 
 
 class StockSearchResponse(BaseModel):

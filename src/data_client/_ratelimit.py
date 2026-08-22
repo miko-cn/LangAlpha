@@ -47,12 +47,17 @@ class _Spec:
 # egress IP bursts.
 _BUCKET_SPECS: dict[str, _Spec] = {
     "futu":        _Spec(rate_per_sec=3.0,  burst=5),
+    "eastmoney":   _Spec(rate_per_sec=2.0,  burst=4),
     "tencent":     _Spec(rate_per_sec=2.0,  burst=4),
     "sina":        _Spec(rate_per_sec=2.0,  burst=4),
     "tushare":     _Spec(rate_per_sec=0.5,  burst=2),    # ~30 req/min, wide margin
     "ginlix-data": _Spec(rate_per_sec=5.0,  burst=10),
     "fmp":         _Spec(rate_per_sec=3.0,  burst=6),
     "yfinance":    _Spec(rate_per_sec=2.0,  burst=4),
+    # Official list dumps — once/day, serial. Burst 1 so two SZSE xlsx never overlap.
+    "szse":        _Spec(rate_per_sec=0.25, burst=1),
+    "sse":         _Spec(rate_per_sec=0.25, burst=1),
+    "cninfo":      _Spec(rate_per_sec=0.5,  burst=1),
 }
 
 
