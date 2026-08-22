@@ -51,8 +51,14 @@ class _CollectLogBuffer:
             self._rows.append(row)
 
     def snapshot(self, limit: int) -> list[dict[str, Any]]:
+        """Return the newest rows first, capped at ``limit``.
+
+        Operators read the log panel top-down for "what just happened",
+        so newest-first matches how the eye scans the column.
+        """
         with self._lock:
             rows = list(self._rows)[-limit:]
+        rows.reverse()
         return [r.__dict__ for r in rows]
 
 

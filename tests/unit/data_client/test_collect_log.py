@@ -21,13 +21,15 @@ def test_record_and_snapshot_roundtrip() -> None:
     )
     rows = collect_log_snapshot()
     assert len(rows) == 2
+    # Newest-first ordering.
     first = rows[0]
-    assert first["source"] == "futu"
-    assert first["status"] == "ok"
-    assert first["capability"] == "daily"
-    assert first["symbol"] == "0700.HK"
-    assert first["took_ms"] == 12.5
+    assert first["source"] == "tencent"
+    assert first["capability"] == "snapshot"
+    assert first["symbol"] == "600519.SS"
+    assert first["took_ms"] == 3.2
     assert first["ts_ms"] > 0
+    second = rows[1]
+    assert second["source"] == "futu"
 
 
 def test_snapshot_returns_newest_first_capped() -> None:
@@ -36,9 +38,10 @@ def test_snapshot_returns_newest_first_capped() -> None:
         record_attempt(capability="daily", symbol=f"S{i}", source="futu",
                        status="ok", took_ms=1.0)
     rows = collect_log_snapshot(limit=3)
-    # Newest 3 of the 10.
+    # Newest 3 of the 10, newest-first.
     assert len(rows) == 3
-    assert rows[-1]["symbol"] == "S9"
+    assert rows[0]["symbol"] == "S9"
+    assert rows[-1]["symbol"] == "S7"
 
 
 def test_error_row_carries_detail() -> None:
