@@ -30,10 +30,8 @@ const CANVAS_SOURCES: Record<'dark' | 'light', CanvasTheme> = {
     bg: '--color-bg-tool-card',
     grid: '--color-border-default',
     text: '--color-text-secondary',
-    // Terminal-mint candles: an accent that exists nowhere else in the system,
-    // so there is no token to point at. Its volume tint follows it.
-    up: '#0FEDBE',
-    down: '--color-loss',
+    up: '--color-quote-up',
+    down: '--color-quote-down',
     upA: 'rgba(15, 237, 190, 0.3)',
     // Volume tints need 30% opacity; no *-soft/-border token carries that in
     // both themes, so they stay literal derivations of profit/loss.
@@ -43,8 +41,8 @@ const CANVAS_SOURCES: Record<'dark' | 'light', CanvasTheme> = {
     bg: '--color-bg-tool-card',
     grid: '--color-border-default',
     text: '--color-text-secondary',
-    up: '--color-profit',
-    down: '--color-loss',
+    up: '--color-quote-up',
+    down: '--color-quote-down',
     upA: 'rgba(26, 127, 55, 0.3)',
     downA: 'rgba(207, 34, 46, 0.3)',
   },
@@ -63,8 +61,8 @@ const CANVAS_FALLBACKS: Record<'dark' | 'light', CanvasTheme> = {
 };
 
 const resolveCanvasTheme = createThemeResolver(CANVAS_SOURCES, CANVAS_FALLBACKS);
-const GREEN = 'var(--color-profit)';
-const RED = 'var(--color-loss)';
+const GREEN = 'var(--color-quote-up)';
+const RED = 'var(--color-quote-down)';
 const MA_BLUE = '#3b82f6';
 const MA_ORANGE = '#f59e0b';
 

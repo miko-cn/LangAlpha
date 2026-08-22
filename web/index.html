@@ -22,6 +22,14 @@
         // bundle and this script runs before it.
         var s = parseFloat(localStorage.getItem('fontScale'));
         if (s >= 0.9 && s <= 1.1) d.style.setProperty('--app-font-scale', String(s));
+        var p = localStorage.getItem('quote-polarity');
+        if (p !== 'western' && p !== 'cn') {
+          var lm = document.cookie.match(/(?:^|;\s*)locale=([^;]+)/);
+          var loc = '';
+          try { loc = lm ? decodeURIComponent(lm[1]) : ''; } catch (e) { loc = ''; }
+          p = loc.toLowerCase().indexOf('zh') === 0 ? 'cn' : 'western';
+        }
+        d.setAttribute('data-quote-polarity', p);
       })();
     </script>
     <style>

@@ -226,7 +226,7 @@ export function InlineChartAnnotationCard({
   const pct =
     lastClose != null && firstClose ? ((lastClose - firstClose) / firstClose) * 100 : null;
   const up = pct == null || pct >= 0;
-  const trendColor = up ? 'var(--color-profit)' : 'var(--color-loss)';
+  const trendColor = up ? 'var(--color-quote-up)' : 'var(--color-quote-down)';
   const hasChart = !barsLoading && viewBars.length >= 2;
   const plotHeight = isMobile ? 200 : 248;
 

@@ -230,11 +230,11 @@
 }
 
 .market-sidebar-row-change--positive {
-  color: var(--color-profit);
+  color: var(--color-quote-up);
 }
 
 .market-sidebar-row-change--negative {
-  color: var(--color-loss);
+  color: var(--color-quote-down);
 }
 
 .market-sidebar-row-change--neutral {

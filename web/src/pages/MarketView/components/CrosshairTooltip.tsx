@@ -38,7 +38,7 @@ function CrosshairTooltip({ visible, x, y, data, containerWidth, containerHeight
   if (!visible || !data) return null;
 
   const isUp = data.close >= data.open;
-  const dirColor = isUp ? 'var(--color-profit)' : 'var(--color-loss)';
+  const dirColor = isUp ? 'var(--color-quote-up)' : 'var(--color-quote-down)';
 
   // Clamp position to stay within container
   const tooltipWidth = 200;

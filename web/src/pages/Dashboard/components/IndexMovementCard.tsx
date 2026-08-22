@@ -91,7 +91,7 @@ function IndexCardContent({ index }: { index: IndexData }) {
               className="text-xs dashboard-mono"
               style={{
                 color: hasQuote
-                  ? pos ? 'var(--color-profit)' : 'var(--color-loss)'
+                  ? pos ? 'var(--color-quote-up)' : 'var(--color-quote-down)'
                   : 'var(--color-text-secondary)',
               }}
             >
@@ -111,7 +111,7 @@ function IndexCardContent({ index }: { index: IndexData }) {
                 dataKey="val"
                 stroke={
                   hasQuote
-                    ? pos ? 'var(--color-profit)' : 'var(--color-loss)'
+                    ? pos ? 'var(--color-quote-up)' : 'var(--color-quote-down)'
                     : 'var(--color-text-secondary)'
                 }
                 strokeWidth={1.5}

@@ -40,7 +40,7 @@ export function UserInfoTab() {
   const { preferences: prefsData } = usePreferences();
   const updatePrefsMutation = useUpdatePreferences();
   const queryClient = useQueryClient();
-  const { theme: _theme, preference, setTheme: setThemePref } = useTheme();
+  const { theme: _theme, preference, setTheme: setThemePref, quotePolarity, setQuotePolarity } = useTheme();
   const [fontScale, setFontScaleState] = useState(getFontScale);
   const { t, i18n } = useTranslation();
 
@@ -340,6 +340,46 @@ export function UserInfoTab() {
           >
             <Monitor className="h-3.5 w-3.5" />
             {t('settings.auto', 'Auto')}
+          </button>
+        </div>
+      </div>
+
+      {/* Quote up/down colors — western green-up vs 红涨绿跌 */}
+      <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border-muted)' }}>
+        <div className="space-y-0.5">
+          <label className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{t('settings.quoteColors')}</label>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{t('settings.quoteColorsDesc')}</p>
+        </div>
+        <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border-muted)' }}>
+          <button
+            type="button"
+            onClick={() => setQuotePolarity('western')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors"
+            style={{
+              backgroundColor: quotePolarity === 'western' ? 'var(--color-accent-soft)' : 'transparent',
+              color: quotePolarity === 'western' ? 'var(--color-accent-primary)' : 'var(--color-text-tertiary)',
+            }}
+          >
+            <span className="dashboard-mono text-xs" aria-hidden>
+              <span style={{ color: '#3FB950' }}>+</span>
+              <span style={{ color: '#F85149' }}>−</span>
+            </span>
+            {t('settings.quoteColorsWestern')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuotePolarity('cn')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors"
+            style={{
+              backgroundColor: quotePolarity === 'cn' ? 'var(--color-accent-soft)' : 'transparent',
+              color: quotePolarity === 'cn' ? 'var(--color-accent-primary)' : 'var(--color-text-tertiary)',
+            }}
+          >
+            <span className="dashboard-mono text-xs" aria-hidden>
+              <span style={{ color: '#F85149' }}>+</span>
+              <span style={{ color: '#3FB950' }}>−</span>
+            </span>
+            {t('settings.quoteColorsCn')}
           </button>
         </div>
       </div>

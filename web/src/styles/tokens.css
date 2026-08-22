@@ -128,6 +128,12 @@ html {
   --color-loss-soft: rgba(248, 81, 73, 0.12);
   --color-loss-muted: rgba(248, 81, 73, 0.6);
   --color-border-loss: rgba(248, 81, 73, 0.3);
+  /* Quote direction (涨跌). profit/loss stay green/red for status+error.
+     `--color-up` below is a different HSL-channel token for .text-up. */
+  --color-quote-up: var(--color-profit);
+  --color-quote-up-soft: var(--color-profit-soft);
+  --color-quote-down: var(--color-loss);
+  --color-quote-down-soft: var(--color-loss-soft);
 
   --color-warning: #D8B04C;
   --color-warning-soft: rgba(216, 176, 76, 0.12);
@@ -341,6 +347,25 @@ html {
   --sidebar-icon: 60 2% 12% / 0.50;
   --sidebar-icon-selected: 60 2% 12%;
   --sidebar-indicator: 28 63% 51%;
+}
+
+/* Mainland convention: 红涨绿跌. profit/loss (status/error) stay put. */
+html[data-quote-polarity="cn"] {
+  --color-quote-up: var(--color-loss);
+  --color-quote-up-soft: var(--color-loss-soft);
+  --color-quote-down: var(--color-profit);
+  --color-quote-down-soft: var(--color-profit-soft);
+  --color-up: 3 93% 63%;
+  --color-up-soft: 3 93% 63% / 0.16;
+  --color-down: 128 49% 49%;
+  --color-down-soft: 128 49% 49% / 0.16;
+}
+
+html[data-theme="light"][data-quote-polarity="cn"] {
+  --color-up: 356 72% 47%;
+  --color-up-soft: 356 72% 47% / 0.08;
+  --color-down: 137 66% 30%;
+  --color-down-soft: 137 66% 30% / 0.08;
 }
 
 @layer base {

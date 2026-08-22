@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import { getQuotePolarity, stampQuotePolarity, type QuotePolarity } from '@/lib/quotePolarity';
+import { clearThemeTokenCache } from '@/lib/themeTokens';
 
 type ThemePreference = 'light' | 'dark' | 'auto';
 export type ResolvedTheme = 'light' | 'dark';
@@ -8,6 +10,8 @@ export interface ThemeContextValue {
   preference: ThemePreference;
   setTheme: (value: ThemePreference) => void;
   toggleTheme: () => void;
+  quotePolarity: QuotePolarity;
+  setQuotePolarity: (value: QuotePolarity) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -25,6 +29,7 @@ function getInitialPreference(): ThemePreference {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreference] = useState<ThemePreference>(getInitialPreference);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
+  const [quotePolarity, setQuotePolarityState] = useState<QuotePolarity>(getQuotePolarity);
 
   // Listen to OS theme changes
   useEffect(() => {
@@ -43,12 +48,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // the previous theme for one frame on every flip.
   useLayoutEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    stampQuotePolarity(quotePolarity);
     localStorage.setItem('theme', preference);
+    // Canvas charts cache resolved token rgb() per theme; polarity changes
+    // the computed --color-quote-* values without flipping data-theme.
+    clearThemeTokenCache();
     const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
     if (favicon) favicon.href = theme === 'light' ? '/logo-favicon.svg' : '/logo-favicon-dark.svg';
-  }, [theme, preference]);
+  }, [theme, preference, quotePolarity]);
 
   const setTheme = (value: ThemePreference) => setPreference(value);
+  const setQuotePolarity = (value: QuotePolarity) => setQuotePolarityState(value);
 
   const toggleTheme = () =>
     setPreference((prev) => {
@@ -58,8 +68,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
 
   const value = useMemo(
-    () => ({ theme, preference, setTheme, toggleTheme }),
-    [theme, preference],
+    () => ({ theme, preference, setTheme, toggleTheme, quotePolarity, setQuotePolarity }),
+    [theme, preference, quotePolarity],
   );
 
   return (

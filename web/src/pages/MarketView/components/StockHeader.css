@@ -48,11 +48,11 @@
 }
 
 .stock-price.positive {
-  color: var(--color-profit);
+  color: var(--color-quote-up);
 }
 
 .stock-price.negative {
-  color: var(--color-loss);
+  color: var(--color-quote-down);
 }
 
 .stock-change {
@@ -61,11 +61,11 @@
 }
 
 .stock-change.positive {
-  color: var(--color-profit);
+  color: var(--color-quote-up);
 }
 
 .stock-change.negative {
-  color: var(--color-loss);
+  color: var(--color-quote-down);
 }
 
 /* Data source indicator (Live / Delayed) — inline next to ticker */

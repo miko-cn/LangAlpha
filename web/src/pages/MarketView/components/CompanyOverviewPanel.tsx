@@ -12,8 +12,8 @@ import {
 } from '../../ChatAgent/components/charts/MarketDataCharts';
 import './CompanyOverviewPanel.css';
 
-const GREEN = 'var(--color-profit)';
-const RED = 'var(--color-loss)';
+const GREEN = 'var(--color-quote-up)';
+const RED = 'var(--color-quote-down)';
 const TEXT_COLOR = 'var(--color-text-secondary)';
 
 interface QuoteData {

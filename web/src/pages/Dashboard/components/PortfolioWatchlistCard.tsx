@@ -108,7 +108,7 @@ function WatchlistItem({ item, index, onDelete, marketStatus, isMobile }: Watchl
             className="text-xs font-medium dashboard-mono"
             style={{
               color: hasQuote
-                ? pos ? 'var(--color-profit)' : 'var(--color-loss)'
+                ? pos ? 'var(--color-quote-up)' : 'var(--color-quote-down)'
                 : 'var(--color-text-secondary)',
             }}
           >
@@ -121,10 +121,10 @@ function WatchlistItem({ item, index, onDelete, marketStatus, isMobile }: Watchl
             className="w-16 py-1 rounded-lg text-center text-xs font-bold"
             style={{
               backgroundColor: hasQuote
-                ? pos ? 'var(--color-profit-soft)' : 'var(--color-loss-soft)'
+                ? pos ? 'var(--color-quote-up-soft)' : 'var(--color-quote-down-soft)'
                 : 'var(--color-bg-subtle)',
               color: hasQuote
-                ? pos ? 'var(--color-profit)' : 'var(--color-loss)'
+                ? pos ? 'var(--color-quote-up)' : 'var(--color-quote-down)'
                 : 'var(--color-text-secondary)',
             }}
           >
@@ -268,10 +268,10 @@ function PortfolioItem({ item, index, onEdit, onDelete, valuesHidden, marketStat
             className="w-16 py-1 rounded-lg text-center text-xs font-bold"
             style={{
               backgroundColor: hasQuote
-                ? pos ? 'var(--color-profit-soft)' : 'var(--color-loss-soft)'
+                ? pos ? 'var(--color-quote-up-soft)' : 'var(--color-quote-down-soft)'
                 : 'var(--color-bg-subtle)',
               color: hasQuote
-                ? pos ? 'var(--color-profit)' : 'var(--color-loss)'
+                ? pos ? 'var(--color-quote-up)' : 'var(--color-quote-down)'
                 : 'var(--color-text-secondary)',
             }}
           >
@@ -553,9 +553,9 @@ function PortfolioWatchlistCard({
                           className="flex items-center gap-2 text-xs font-medium w-fit px-2 py-1 rounded-full"
                           style={{
                             backgroundColor: summary.isPlPositive
-                              ? 'var(--color-profit-soft)'
-                              : 'var(--color-loss-soft)',
-                            color: summary.isPlPositive ? 'var(--color-profit)' : 'var(--color-loss)',
+                              ? 'var(--color-quote-up-soft)'
+                              : 'var(--color-quote-down-soft)',
+                            color: summary.isPlPositive ? 'var(--color-quote-up)' : 'var(--color-quote-down)',
                           }}
                         >
                           {summary.isPlPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}

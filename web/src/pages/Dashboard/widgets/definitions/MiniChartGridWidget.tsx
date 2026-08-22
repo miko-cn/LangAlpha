@@ -126,7 +126,7 @@ function MiniSparkline({ cell }: { cell: CellData }) {
   const lastX = pad + (closes.length - 1) * step;
   const lastY = pad + (1 - (cell.last - min) / range) * (h - pad * 2);
   const up = cell.last >= cell.prev;
-  const stroke = up ? 'var(--color-profit)' : 'var(--color-loss)';
+  const stroke = up ? 'var(--color-quote-up)' : 'var(--color-quote-down)';
 
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden>
@@ -328,7 +328,7 @@ function MiniChartGridWidget({ instance }: WidgetRenderProps<MiniChartGridConfig
                     </span>
                     <span
                       className="text-[0.6875rem] dashboard-mono"
-                      style={{ color: up ? 'var(--color-profit)' : 'var(--color-loss)' }}
+                      style={{ color: up ? 'var(--color-quote-up)' : 'var(--color-quote-down)' }}
                     >
                       {up ? '+' : ''}{fmt2(pct)}%
                     </span>
