@@ -293,3 +293,104 @@ def test_universe_disk_roundtrip_and_fresh_skip(
     monkeypatch.setattr(uni, "fetch_official", boom)
     uni.kick_refresh()
     assert uni._refresh_task is None
+
+
+def test_tencent_snapshot_etf_iopv_and_ashare_mcap() -> None:
+    from src.data_client.tencent.data_source import TencentDataSource
+
+    def row(**overrides: object) -> list[str]:
+        f = [""] * 88
+        f[1] = "沪深300ETF华泰柏瑞"
+        f[3] = "4.680"
+        f[4] = "4.653"
+        f[5] = "4.648"
+        f[6] = "100"
+        f[31] = "0.027"
+        f[32] = "0.58"
+        f[33] = "4.693"
+        f[34] = "4.641"
+        f[37] = "340001"
+        f[38] = "3.10"
+        f[44] = "1098.93"
+        f[45] = "1098.93"
+        f[47] = "5.118"
+        f[48] = "4.188"
+        f[61] = "ETF"
+        f[77] = "-0.01"
+        f[78] = "4.6805"
+        for k, v in overrides.items():
+            f[int(k)] = str(v)
+        return f
+
+    etf = TencentDataSource._normalize_snapshot("sh510300", row())
+    assert etf["iopv"] == pytest.approx(4.6805)
+    assert etf["premium_percent"] == pytest.approx(-0.01)
+    assert etf["market_cap"] == pytest.approx(1098.93 * 1e8)
+    assert etf["turnover_rate"] == pytest.approx(3.10)
+    assert etf["limit_up"] == pytest.approx(5.118)
+
+    stock = TencentDataSource._normalize_snapshot("sh600519", row(
+        **{"1": "贵州茅台", "3": "1272.83", "39": "19.54", "46": "6.33", "61": "GP-A", "77": "", "78": ""},
+    ))
+    assert stock["pe"] == pytest.approx(19.54)
+    assert stock["pb"] == pytest.approx(6.33)
+    assert stock.get("iopv") is None
+
+    idx = TencentDataSource._normalize_snapshot("sh000300", row(
+        **{"1": "沪深300", "3": "4618.90", "39": "14.14", "47": "-1", "61": "ZS", "77": "", "78": ""},
+    ))
+    assert idx["pe"] == pytest.approx(14.14)
+    assert idx["limit_up"] is None
+    assert idx.get("iopv") is None
+
+    hk = TencentDataSource._normalize_snapshot("hk00700", row(
+        **{"1": "腾讯控股", "3": "600", "39": "22.1", "46": "TENCENT", "61": "", "77": "9.9", "78": "1.2"},
+    ))
+    assert hk["pe"] == pytest.approx(22.1)
+    assert "pb" not in hk
+    assert "iopv" not in hk
+    assert "limit_up" not in hk
+
+
+def test_constituents_parse_and_alias() -> None:
+    from src.data_client.cn.constituents import (
+        canonicalize,
+        parse_constituent_table,
+        supported,
+    )
+
+    assert canonicalize("000300") == "000300.SS"
+    assert canonicalize("399006") == "399006.SZ"
+    assert supported("000300.SS") and supported("399300.SZ")
+    assert not supported("000001.SS")
+
+    rows = parse_constituent_table([
+        ["证券代码", "证券简称"],
+        ["000001", "平安银行"],
+        ["600519", "贵州茅台"],
+        ["300750", "宁德时代"],
+    ])
+    assert [(r.symbol, r.name) for r in rows] == [
+        ("000001.SZ", "平安银行"),
+        ("600519.SS", "贵州茅台"),
+        ("300750.SZ", "宁德时代"),
+    ]
+
+
+def test_constituents_disk_roundtrip(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from src.data_client.cn import constituents as cons
+
+    monkeypatch.setenv("LANGALPHA_CN_CONSTITUENTS_DIR", str(tmp_path))
+    cons._mem.clear()
+    cons._write_disk(
+        "000300.SS",
+        [cons.Constituent("000001.SZ", "平安银行")],
+        datetime.now(tz=ZoneInfo("Asia/Shanghai")),
+    )
+    hit = cons.get_cached("000300")
+    assert hit is not None
+    assert [(r.symbol, r.name) for r in hit[0]] == [("000001.SZ", "平安银行")]
+    assert hit[1] == "沪深300"

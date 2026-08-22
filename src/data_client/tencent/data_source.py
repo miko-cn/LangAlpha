@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from src.data_client.base import FetchResult
 from src.data_client.cn.bars import VOLUME_LOT, make_bar, minute_stamp_to_ms, to_ms, sort_ascending
 from src.data_client.cn.symbols import split_app_symbol, tencent_symbol
 from src.data_client.market_data_provider import symbol_timezone
@@ -25,11 +24,17 @@ logger = logging.getLogger(__name__)
 _UTC = timezone.utc
 _ET = ZoneInfo("America/New_York")
 
-# Realtime field indices (identical layout for A-share and HK).
-# The API is ``~``-delimited; the quoted string starts with a market flag, so
-# field N of the flag-split list = index N-1 in the raw ``~`` list.
+# Realtime field indices on the ``~``-split quoted string (skill-calibrated).
+# A-share / ETF / index share one layout; HK reuses 1–5 / 31–34 / 39 / 44–45
+# but 46+ is a different schema (don't read PB / 涨跌停 / IOPV off HK rows).
 _F_PRICE, _F_PREV, _F_OPEN, _F_VOL = 3, 4, 5, 6
 _F_CHANGE, _F_CHANGE_PCT, _F_HIGH, _F_LOW = 31, 32, 33, 34
+_F_AMOUNT_WAN, _F_TURNOVER, _F_PE_TTM = 37, 38, 39
+_F_AMPLITUDE, _F_FLOAT_MCAP_YI, _F_MCAP_YI = 43, 44, 45
+_F_PB, _F_LIMIT_UP, _F_LIMIT_DOWN, _F_VOL_RATIO = 46, 47, 48, 49
+_F_KIND, _F_PREMIUM_PCT, _F_IOPV = 61, 77, 78
+_YI = 100_000_000.0
+_WAN = 10_000.0
 
 
 def _volume_scale(market: str) -> float:
@@ -43,18 +48,28 @@ class TencentDataSource:
     @staticmethod
     def _normalize_snapshot(code: str, f: list[str]) -> dict[str, Any]:
         market = code[:2]
+
         def num(i: int) -> float | None:
             try:
-                return float(f[i])
+                v = float(f[i])
             except (IndexError, TypeError, ValueError):
                 return None
-        return {
+            return v
+
+        def pos(i: int) -> float | None:
+            v = num(i)
+            return v if v is not None and v > 0 else None
+
+        price, prev = num(_F_PRICE), num(_F_PREV)
+        amount = num(_F_AMOUNT_WAN)
+        kind = (f[_F_KIND] if len(f) > _F_KIND else "") or ""
+        row: dict[str, Any] = {
             "symbol": None,  # set by caller from the request symbol
             "name": f[1] if len(f) > 1 else None,
-            "price": num(_F_PRICE),
+            "price": price,
             "change": num(_F_CHANGE),
             "change_percent": num(_F_CHANGE_PCT),
-            "previous_close": num(_F_PREV),
+            "previous_close": prev,
             "open": num(_F_OPEN),
             "high": num(_F_HIGH),
             "low": num(_F_LOW),
@@ -62,7 +77,34 @@ class TencentDataSource:
             "market_status": None,
             "early_trading_change_percent": None,
             "late_trading_change_percent": None,
+            "pe": pos(_F_PE_TTM),
+            "market_cap": (mcap * _YI) if (mcap := pos(_F_MCAP_YI)) else None,
+            "is_stale": bool(
+                price and prev and price == prev and (amount is None or amount == 0)
+            ),
         }
+        if market == "hk":
+            return row
+        # A-share / ETF / index extras. 46+ on HK is a different layout.
+        float_mcap = pos(_F_FLOAT_MCAP_YI)
+        row.update({
+            "pb": pos(_F_PB),
+            "float_market_cap": float_mcap * _YI if float_mcap else None,
+            "turnover_rate": pos(_F_TURNOVER),
+            "amount": amount * _WAN if amount else None,
+            "amplitude": pos(_F_AMPLITUDE),
+            "limit_up": pos(_F_LIMIT_UP),
+            "limit_down": pos(_F_LIMIT_DOWN),
+            "volume_ratio": pos(_F_VOL_RATIO),
+        })
+        if kind.strip() in {"ETF", "LOF"}:
+            iopv = pos(_F_IOPV)
+            row["iopv"] = iopv
+            prem = num(_F_PREMIUM_PCT)
+            if prem is None and iopv and price:
+                prem = (price - iopv) / iopv * 100.0
+            row["premium_percent"] = prem
+        return row
 
     async def get_snapshots(
         self,

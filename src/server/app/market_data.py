@@ -27,6 +27,8 @@ from src.server.models.market_data import (
     AnalystDataResponse,
     SnapshotData,
     SnapshotResponse,
+    ConstituentRow,
+    ConstituentsResponse,
     MarketStatusResponse,
     STOCK_INTERVALS,
     INDEX_INTERVALS,
@@ -771,6 +773,30 @@ async def get_single_stock_snapshot(symbol: str, user_id: CurrentUserId) -> Snap
     except Exception as e:
         logger.error(f"Error fetching snapshot for {symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/indexes/{symbol}/constituents",
+    response_model=ConstituentsResponse,
+    summary="Get CN index constituents",
+    description="SZSE official sample list (CSI dual-code for 沪深300 / 中证500 / 上证50).",
+)
+async def get_index_constituents(symbol: str) -> ConstituentsResponse:
+    from src.data_client.cn.constituents import ensure, supported
+
+    if not supported(symbol):
+        raise HTTPException(status_code=404, detail="No constituent source for this index")
+    try:
+        rows, name = await ensure(symbol)
+    except Exception as exc:
+        logger.error("constituents failed symbol=%s err=%s", symbol, exc)
+        raise HTTPException(status_code=503, detail="Constituents unavailable") from exc
+    return ConstituentsResponse(
+        symbol=symbol.strip().upper(),
+        name=name,
+        count=len(rows),
+        constituents=[ConstituentRow(symbol=r.symbol, name=r.name) for r in rows],
+    )
 
 
 # =============================================================================

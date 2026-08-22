@@ -266,12 +266,37 @@ class SnapshotData(BaseModel):
     late_trading_change: Optional[float] = Field(None, description="After-hours change (absolute)")
     late_trading_change_percent: Optional[float] = Field(None, description="After-hours change %")
     source: Optional[str] = Field(None, description="Provider that filled this row")
+    pe: Optional[float] = Field(None, description="PE (TTM); CN via Tencent")
+    pb: Optional[float] = Field(None, description="PB; A-share / index via Tencent")
+    market_cap: Optional[float] = Field(None, description="Total market cap in listing currency units")
+    float_market_cap: Optional[float] = Field(None, description="Float market cap in listing currency units")
+    turnover_rate: Optional[float] = Field(None, description="Turnover %")
+    amount: Optional[float] = Field(None, description="Turnover value in listing currency units")
+    amplitude: Optional[float] = Field(None, description="Day amplitude %")
+    limit_up: Optional[float] = Field(None, description="Limit-up price")
+    limit_down: Optional[float] = Field(None, description="Limit-down price")
+    volume_ratio: Optional[float] = Field(None, description="Volume ratio")
+    iopv: Optional[float] = Field(None, description="ETF IOPV / NAV")
+    premium_percent: Optional[float] = Field(None, description="ETF premium/discount vs IOPV %")
+    is_stale: Optional[bool] = Field(None, description="Frozen quote (halt / dead code)")
 
 
 class SnapshotResponse(BaseModel):
     """Response for batch snapshot request."""
     snapshots: List[SnapshotData] = Field(default_factory=list, description="Snapshot data per symbol")
     count: int = Field(0, description="Number of snapshots returned")
+
+
+class ConstituentRow(BaseModel):
+    symbol: str
+    name: str
+
+
+class ConstituentsResponse(BaseModel):
+    symbol: str
+    name: Optional[str] = None
+    count: int = 0
+    constituents: List[ConstituentRow] = Field(default_factory=list)
 
 
 class MarketStatusResponse(BaseModel):
