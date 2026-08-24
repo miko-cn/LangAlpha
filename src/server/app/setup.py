@@ -156,6 +156,85 @@ def _log_container_hardening() -> None:
         )
 
 
+async def _init_langgraph_persistence():
+    """Open the LangGraph checkpointer, store, and WriterGuard.
+
+    Conversation history is checkpoint state. This must not share a try/except
+    with Daytona/MCP/session init — a missing ``DAYTONA_API_KEY`` used to skip
+    this entirely, so every turn compiled a checkpointer-less graph and the
+    model treated each message as the first in the thread.
+    """
+    from src.server.utils.checkpointer import (
+        get_checkpointer,
+        open_checkpointer_pool,
+        get_store,
+        setup_store,
+    )
+
+    saver = get_checkpointer(
+        memory_type=os.getenv("MEMORY_DB_TYPE", "postgres"),
+        db_host=os.getenv("DB_HOST", "localhost"),
+        db_port=os.getenv("DB_PORT", "5432"),
+        db_name=os.getenv("DB_NAME", "postgres"),
+        db_user=os.getenv("DB_USER", "postgres"),
+        db_password=os.getenv("DB_PASSWORD", "postgres"),
+    )
+    if saver is None:
+        raise RuntimeError(
+            "LangGraph checkpointer failed to initialize; conversation "
+            "history cannot persist. Check MEMORY_DB_TYPE and DB_*."
+        )
+    await open_checkpointer_pool(saver)
+    if hasattr(saver, "conn"):
+        pool = saver.conn
+        async with pool.connection() as conn:
+            await conn.execute("SELECT 1")
+    logger.info("PTC Agent checkpointer initialized")
+
+    lg_store = None
+    try:
+        lg_store = get_store(saver)
+        if lg_store:
+            await setup_store(lg_store)
+            logger.info("LangGraph Store initialized")
+    except Exception as e:
+        logger.warning(f"LangGraph Store setup failed: {e}")
+        logger.warning("Offloaded ID dedup will use in-memory fallback")
+        lg_store = None
+
+    # Phase 2 (I2): the pinned-session writer pool. Only meaningful with
+    # a Postgres checkpointer in the SAME database as the app tables —
+    # advisory locks are database-local, so a split deployment gets no
+    # fence (and must stay single-worker).
+    try:
+        from src.server.database.pool import get_db_connection_string
+        from src.server.services import writer_guard
+
+        if hasattr(saver, "conn"):
+            app_dsn = get_db_connection_string()
+            cp_pool = saver.conn
+            cp_dsn = getattr(cp_pool, "conninfo", None) or getattr(
+                cp_pool, "_conninfo", ""
+            )
+            if writer_guard.same_database(app_dsn, cp_dsn):
+                await writer_guard.open_writer_pool(app_dsn)
+            else:
+                logger.warning(
+                    "WriterGuard disabled: checkpointer database differs "
+                    "from the app database; runs are unfenced and "
+                    "--workers>1 is unsupported"
+                )
+        else:
+            logger.warning(
+                "WriterGuard disabled: non-Postgres checkpointer; runs "
+                "are unfenced and --workers>1 is unsupported"
+            )
+    except Exception as e:
+        logger.warning(f"WriterGuard pool setup failed: {e}; running unfenced")
+
+    return saver, lg_store
+
+
 # ============================================================================
 # Lifespan Context Manager
 # ============================================================================
@@ -294,6 +373,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Pre-built workflow warmup failed: {e}")
 
+    # Conversation history lives here. Independent of Daytona/sandbox — Flash
+    # (and PTC) multi-turn memory dies if this is skipped.
+    checkpointer, store = await _init_langgraph_persistence()
+
     # Initialize PTC Agent configuration and session service
     try:
         from ptc_agent.config import load_from_files, ConfigContext
@@ -394,71 +477,6 @@ async def lifespan(app: FastAPI):
         )
         await workspace_manager.start_cleanup_task()
         logger.info("Workspace Manager initialized")
-
-        # Initialize PTC Agent checkpointer for state persistence
-        from src.server.utils.checkpointer import (
-            get_checkpointer,
-            open_checkpointer_pool,
-            get_store,
-            setup_store,
-        )
-
-        checkpointer = get_checkpointer(
-            memory_type=os.getenv("MEMORY_DB_TYPE", "postgres"),
-            db_host=os.getenv("DB_HOST", "localhost"),
-            db_port=os.getenv("DB_PORT", "5432"),
-            db_name=os.getenv("DB_NAME", "postgres"),
-            db_user=os.getenv("DB_USER", "postgres"),
-            db_password=os.getenv("DB_PASSWORD", "postgres"),
-        )
-        await open_checkpointer_pool(checkpointer)
-        # Validate checkpointer pool is ready with a health check
-        if checkpointer and hasattr(checkpointer, "conn"):
-            pool = checkpointer.conn
-            async with pool.connection() as conn:
-                await conn.execute("SELECT 1")
-        logger.info("PTC Agent checkpointer initialized")
-
-        # Initialize LangGraph Store (shares pool with checkpointer)
-        try:
-            store = get_store(checkpointer)
-            if store:
-                await setup_store(store)
-                logger.info("LangGraph Store initialized")
-        except Exception as e:
-            logger.warning(f"LangGraph Store setup failed: {e}")
-            logger.warning("Offloaded ID dedup will use in-memory fallback")
-            store = None
-
-        # Phase 2 (I2): the pinned-session writer pool. Only meaningful with
-        # a Postgres checkpointer in the SAME database as the app tables —
-        # advisory locks are database-local, so a split deployment gets no
-        # fence (and must stay single-worker).
-        try:
-            from src.server.database.pool import get_db_connection_string
-            from src.server.services import writer_guard
-
-            if checkpointer is not None and hasattr(checkpointer, "conn"):
-                app_dsn = get_db_connection_string()
-                cp_pool = checkpointer.conn
-                cp_dsn = getattr(cp_pool, "conninfo", None) or getattr(
-                    cp_pool, "_conninfo", ""
-                )
-                if writer_guard.same_database(app_dsn, cp_dsn):
-                    await writer_guard.open_writer_pool(app_dsn)
-                else:
-                    logger.warning(
-                        "WriterGuard disabled: checkpointer database differs "
-                        "from the app database; runs are unfenced and "
-                        "--workers>1 is unsupported"
-                    )
-            else:
-                logger.warning(
-                    "WriterGuard disabled: non-Postgres checkpointer; runs "
-                    "are unfenced and --workers>1 is unsupported"
-                )
-        except Exception as e:
-            logger.warning(f"WriterGuard pool setup failed: {e}; running unfenced")
 
     except FileNotFoundError as e:
         logger.warning(f"PTC Agent config not found: {e}")
