@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { mapSnapshotToStockQuote, fetchCompanyOverview, fetchAnalystData } from '../utils/api';
 import { useQuote } from '@/lib/quotes';
-import { fetchMarketStatus } from '@/lib/marketUtils';
+import { fetchMarketStatus, isIndexInstrument } from '@/lib/marketUtils';
 import type { StockInfo, RealTimePrice, SnapshotData } from '@/types/market';
 import type { ConnectionStatus } from './useMarketDataWS';
 
@@ -67,7 +67,7 @@ export function useStockData({
     // 1. Stock Quote & Snapshot — sourced from the unified quote layer so this
     //    symbol shares one cache entry (and one poll) with the sidebar watchlist
     //    / portfolio showing it, and stays consistent with WS write-through.
-    const isIndex = !!selectedStock && selectedStock.startsWith('^');
+    const isIndex = !!selectedStock && isIndexInstrument(selectedStock);
     const { quote, isLoading: quoteLoading } = useQuote(selectedStock, {
         isIndex,
         // Polling: disabled if WS is streaming real-time, otherwise poll every 60s.

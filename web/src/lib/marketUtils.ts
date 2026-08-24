@@ -68,6 +68,19 @@ export function indexMarketSymbol(symbol: string): string {
 }
 
 /**
+ * True for instruments that must hit the index snapshot/bars routes.
+ * `^GSPC` / `I:SPX` are US-family spellings; `000xxx.SS` / `399xxx.SZ` are
+ * A-share indexes (same digits can be a stock on the other venue).
+ */
+export function isIndexInstrument(symbol: string): boolean {
+  const raw = String(symbol ?? '').trim().toUpperCase();
+  if (!raw) return false;
+  if (raw.startsWith('^') || raw.startsWith('I:')) return true;
+  const s = raw.replace(/^\^/, '');
+  return /^000\d{3}\.SS$/.test(s) || /^399\d{3}\.SZ$/.test(s);
+}
+
+/**
  * Compute extended-hours display info from market status and a data row.
  * Accepts both camelCase (snapshot-enriched rows) and snake_case (raw snapshot) field names.
  */

@@ -9,6 +9,7 @@
  * helpers the protocol client uses, so both pipelines produce identical bars.
  */
 import { api } from '@/api/client';
+import { isIndexInstrument } from '@/lib/marketUtils';
 
 import { coerceWatermark, rowsToChartBars } from './barsClient';
 import { timezoneForSymbol } from './exchanges';
@@ -60,7 +61,7 @@ export async function fetchStockData(
   }
 
   const symbolUpper = symbol.trim().toUpperCase();
-  const isIndex = symbolUpper.startsWith('^');
+  const isIndex = isIndexInstrument(symbolUpper);
 
   try {
     // Use daily endpoint for 1day interval, intraday endpoint for everything else

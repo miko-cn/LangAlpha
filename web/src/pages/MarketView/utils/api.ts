@@ -4,7 +4,7 @@
  */
 import { api } from '@/api/client';
 import { supabase } from '@/lib/supabase';
-import { normalizeIndexKey } from '@/lib/marketUtils';
+import { isIndexInstrument, normalizeIndexKey } from '@/lib/marketUtils';
 
 // Legacy full-window bar loader now lives in lib/bars (so lib/ never imports a
 // page); re-exported for page-internal callers that still import it from here.
@@ -71,7 +71,7 @@ interface SnapshotData {
 export async function fetchSnapshot(symbol: string, { signal }: { signal?: AbortSignal } = {}): Promise<SnapshotData | null> {
   if (!symbol || !symbol.trim()) throw new Error('Symbol is required');
   const symbolUpper = symbol.trim().toUpperCase();
-  const isIndex = symbolUpper.startsWith('^');
+  const isIndex = isIndexInstrument(symbolUpper);
   const norm = normalizeIndexKey(symbolUpper);
   const endpoint = isIndex
     ? `/api/v1/market-data/snapshots/indexes?symbols=${encodeURIComponent(norm)}`
@@ -136,7 +136,7 @@ interface StockQuoteResult {
  */
 export function mapSnapshotToStockQuote(symbol: string, snap: SnapshotData | null): StockQuoteResult {
   const symbolUpper = symbol.trim().toUpperCase();
-  const isIndex = symbolUpper.startsWith('^');
+  const isIndex = isIndexInstrument(symbolUpper);
   const fallbackInfo: StockInfo = {
     Symbol: symbolUpper,
     Name: `${symbolUpper} Corp`,

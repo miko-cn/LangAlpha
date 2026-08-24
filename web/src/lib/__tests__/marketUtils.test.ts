@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Mock } from 'vitest';
-import { getExtendedHoursInfo, searchStocks, fetchMarketStatus, indexMarketSymbol } from '../marketUtils';
+import { getExtendedHoursInfo, searchStocks, fetchMarketStatus, indexMarketSymbol, isIndexInstrument } from '../marketUtils';
 
 // Mock the api client
 vi.mock('@/api/client', () => ({
@@ -254,5 +254,20 @@ describe('indexMarketSymbol', () => {
     expect(indexMarketSymbol('^HSI')).toBe('^HSI');
     expect(indexMarketSymbol('000300.SS')).toBe('000300.SS');
     expect(indexMarketSymbol('^000300.ss')).toBe('000300.SS');
+  });
+});
+
+describe('isIndexInstrument', () => {
+  it('detects caret / I: US families and A-share index suffixes', () => {
+    expect(isIndexInstrument('^GSPC')).toBe(true);
+    expect(isIndexInstrument('I:SPX')).toBe(true);
+    expect(isIndexInstrument('000001.SS')).toBe(true);
+    expect(isIndexInstrument('399006.SZ')).toBe(true);
+  });
+
+  it('does not treat the same digits on the other venue as an index', () => {
+    expect(isIndexInstrument('000001.SZ')).toBe(false);
+    expect(isIndexInstrument('600519.SS')).toBe(false);
+    expect(isIndexInstrument('AAPL')).toBe(false);
   });
 });

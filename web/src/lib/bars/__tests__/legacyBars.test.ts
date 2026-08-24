@@ -85,6 +85,14 @@ describe('fetchStockData — metadata passthrough', () => {
     expect(res.meta?.displayDecimals).toBe(4);
   });
 
+  it('routes A-share indexes to /daily/indexes, not /stocks', async () => {
+    apiMock.get.mockResolvedValueOnce({ data: { data: [bar] } });
+    await fetchStockData('000001.SS', '1day', undefined, undefined);
+    expect(apiMock.get.mock.calls[0][0]).toBe(
+      '/api/v1/market-data/daily/indexes/000001.SS',
+    );
+  });
+
   it('omits meta on the error path (no data)', async () => {
     apiMock.get.mockResolvedValueOnce({ data: { data: [] } });
     const res = await fetchStockData('AAPL', '1min', undefined, undefined);

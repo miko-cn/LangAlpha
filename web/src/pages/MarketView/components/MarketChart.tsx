@@ -17,6 +17,7 @@ import { RANGE_PRESETS, rangeStartChartSec } from '@/lib/bars/rangePresets';
 import type { RangePreset } from '@/lib/bars/rangePresets';
 import { chartSecToDateStr, dateStrInTz } from '@/lib/utils';
 import VenueClock from './VenueClock';
+import { isIndexInstrument } from '@/lib/marketUtils';
 import { useQuote } from '@/lib/quotes';
 import { calculateMA, calculateRSI, updateRSIIncremental } from '../utils/chartHelpers';
 import type { RSIState, OHLCDataPoint } from '../utils/chartHelpers';
@@ -882,7 +883,7 @@ const MarketChart = React.memo(forwardRef<MarketChartHandle, MarketChartProps>((
   // is preserved. Deliberately does NOT touch lastLiveTickTimeRef, so the 60s
   // REST poll still runs as the authoritative correction (MA/RSI + drift).
   const { quote: dayQuote } = useQuote(symbol, {
-    isIndex: (symbol ?? '').startsWith('^'),
+    isIndex: isIndexInstrument(symbol ?? ''),
     enabled: interval === '1day' && effectiveChartMode === 'custom',
   });
   useEffect(() => {
