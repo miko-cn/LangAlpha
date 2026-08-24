@@ -132,6 +132,28 @@ class _SeriesCacheCore:
     async def _provider(self):
         raise NotImplementedError
 
+    async def _bars_for_delta_refresh(
+        self,
+        envelope: Dict[str, Any] | None,
+        symbol: str,
+        interval: str,
+        is_index: bool,
+    ) -> List[Dict[str, Any]]:
+        """Prefix the delta merge uses. Daily hydrates PG under a head-only key."""
+        return list(envelope["bars"]) if envelope else []
+
+    def _records_for_redis(
+        self, bars: List[Dict[str, Any]], interval: str,
+    ) -> List[Dict[str, Any]]:
+        return bars
+
+    async def _on_series_committed(
+        self, symbol: str, interval: str, is_index: bool,
+        bars: List[Dict[str, Any]], source: Optional[str], revision: int,
+        truncated: bool, clock, phase: str,
+    ) -> None:
+        return None
+
     # -- helpers ----------------------------------------------------------
 
     @staticmethod
@@ -299,7 +321,9 @@ class _SeriesCacheCore:
                     return
 
                 watermark = envelope["watermark"] if envelope else None
-                existing_bars = envelope["bars"] if envelope else []
+                existing_bars = await self._bars_for_delta_refresh(
+                    envelope, symbol, interval, is_index,
+                )
                 header = (envelope or {}).get("header") or {}
                 publisher = header.get("publisher")
                 revision = header.get("revision", 0)
@@ -350,16 +374,23 @@ class _SeriesCacheCore:
                 base_ttl = get_ohlcv_ttl(interval)
                 effective = self._effective_ttl(base_ttl, complete, clock)
                 instrument_key, schema = series_identity(symbol, interval, is_index)
+                cache_records = self._records_for_redis(merged, interval)
                 new_envelope = _build_envelope(
-                    merged, phase, complete, stored_ttl=effective, truncated=truncated,
+                    cache_records, phase, complete, stored_ttl=effective, truncated=truncated,
                     data_date=clock.current_trading_date(),
                     instrument_key=instrument_key, schema=schema,
                     publisher=source or publisher, revision=revision,
                 )
+                if len(cache_records) < len(merged):
+                    new_envelope["header"]["coverage"]["head_only"] = True
 
                 await cache.set(cache_key, new_envelope, ttl=effective)
                 if source:
                     await self._write_pin(symbol, interval, is_index, source)
+                await self._on_series_committed(
+                    symbol, interval, is_index, merged, source or publisher,
+                    revision, truncated, clock, phase,
+                )
 
                 self._logger.debug(
                     "%s for %s: fetched %d bars, total %d, phase=%s, complete=%s",

@@ -205,6 +205,7 @@ def _parse_envelope(raw: Any) -> Optional[Dict[str, Any]]:
             "stored_ttl": raw.get("stored_ttl", 0),
             "data_date": header.get("latest_trading_date"),
             "truncated": bool((header.get("coverage") or {}).get("truncated")),
+            "head_only": bool((header.get("coverage") or {}).get("head_only")),
             "header": header,
         }
     if raw.get("v") == _ENVELOPE_V3 and "bars" in raw:

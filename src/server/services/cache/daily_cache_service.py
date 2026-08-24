@@ -20,14 +20,26 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from src.config.settings import get_ohlcv_ttl
 from src.data_client import get_market_data_provider
+from src.server.database.ohlcv import (
+    HEAD_BARS,
+    finalized_bars,
+    load_daily_bars,
+    load_daily_series,
+    replace_daily_body,
+    split_head,
+)
 from src.server.services.cache._instrument_clock import clock_for
 from src.server.services.cache._ohlcv_envelope import (
     _EMPTY_RESULT_TTL,
+    _bar_time,
     _build_envelope,
     _is_stale_date,
+    _merge_bars,
     _needs_refresh,
     is_watermark_stale,
     series_identity,
+    splice_is_discontinuous,
+    watermark_to_date_str,
 )
 from src.server.services.cache._series_cache_core import (
     _SeriesCacheCore,
@@ -155,6 +167,118 @@ class DailyCacheService(_SeriesCacheCore):
     ) -> str:
         return DailyCacheKeyBuilder.daily_key(symbol, from_date, to_date, source=source, is_index=is_index)
 
+    def _records_for_redis(self, bars, interval):
+        if interval != "1day":
+            return bars
+        _, head = split_head(bars, HEAD_BARS)
+        return head
+
+    async def _bars_for_delta_refresh(self, envelope, symbol, interval, is_index):
+        env = await self._hydrate_envelope(envelope, symbol, is_index)
+        return list(env["bars"]) if env else []
+
+    async def _on_series_committed(
+        self, symbol, interval, is_index, bars, source, revision, truncated, clock, phase,
+    ) -> None:
+        if interval != "1day" or truncated or not bars or not source:
+            return
+        instrument_key, schema = series_identity(symbol, interval, is_index)
+        body = finalized_bars(
+            bars,
+            trading_date=clock.current_trading_date(),
+            market_closed=phase == "closed",
+            tz=clock.tz,
+        )
+        if not body:
+            return
+        await replace_daily_body(
+            instrument_key=instrument_key,
+            schema=schema,
+            publisher=source,
+            revision=revision,
+            bars=body,
+            truncated=False,
+        )
+
+    async def _hydrate_envelope(
+        self, envelope: Optional[Dict[str, Any]], symbol: str, is_index: bool,
+    ) -> Optional[Dict[str, Any]]:
+        """Splice the PG body under a head-only Redis envelope. No-op otherwise."""
+        if not envelope or not envelope.get("head_only"):
+            return envelope
+        header = envelope.get("header") or {}
+        instrument_key = header.get("instrument_key")
+        schema = header.get("schema")
+        publisher = header.get("publisher")
+        if not instrument_key or not publisher or not schema:
+            return envelope
+        body = await load_daily_bars(
+            instrument_key, schema, publisher, int(header.get("revision") or 0),
+        )
+        if not body:
+            return envelope
+        head = envelope.get("bars") or []
+        cutoff = _bar_time(head[0]) if head else 0
+        spliced = _merge_bars(body, head, cutoff) if cutoff else body + head
+        return {**envelope, "bars": spliced}
+
+    async def _fetch_live_daily(
+        self,
+        normalized: str,
+        from_date: Optional[str],
+        to_date: Optional[str],
+        is_index: bool,
+        user_id: Optional[str],
+        clock,
+    ) -> Tuple[List[Dict[str, Any]], Optional[str], bool, int]:
+        """PG body + watermark delta when we have a durable series; else full fetch."""
+        instrument_key, schema = series_identity(normalized, "1day", is_index)
+        meta = await load_daily_series(instrument_key, schema)
+        if meta and not meta.truncated:
+            body = await load_daily_bars(
+                instrument_key, schema, meta.publisher, meta.revision,
+            )
+            if body:
+                return await self._delta_from_body(
+                    normalized, from_date, to_date, is_index, user_id, clock, meta, body,
+                )
+        data, source, truncated = await self._pinned_fetch(
+            normalized, "1day", from_date, to_date, is_index, user_id,
+        )
+        return data, source, truncated, 0
+
+    async def _delta_from_body(
+        self,
+        normalized: str,
+        from_date: Optional[str],
+        to_date: Optional[str],
+        is_index: bool,
+        user_id: Optional[str],
+        clock,
+        meta,
+        body: List[Dict[str, Any]],
+    ) -> Tuple[List[Dict[str, Any]], Optional[str], bool, int]:
+        delta_from = watermark_to_date_str(meta.watermark, tz=clock.tz)
+        data, source, truncated = await self._pinned_fetch(
+            normalized, "1day", delta_from, to_date, is_index, user_id,
+        )
+        if source and source != meta.publisher:
+            logger.info(
+                "Daily PG body %s: publisher %s → %s, full re-fetch",
+                normalized, meta.publisher, source,
+            )
+            data, source, truncated = await self._pinned_fetch(
+                normalized, "1day", from_date, to_date, is_index, user_id,
+            )
+            return data, source, truncated, meta.revision + 1
+        if splice_is_discontinuous(body, data, meta.watermark):
+            logger.info("Daily PG body %s: discontinuity → full re-fetch", normalized)
+            data, source, truncated = await self._pinned_fetch(
+                normalized, "1day", from_date, to_date, is_index, user_id,
+            )
+            return data, source, truncated, meta.revision + 1
+        return _merge_bars(body, data, meta.watermark), source, truncated, meta.revision
+
     # -- public API -------------------------------------------------------
 
     async def get_stock_daily(
@@ -211,6 +335,7 @@ class DailyCacheService(_SeriesCacheCore):
                     envelope = None
 
             if envelope is not None:
+                envelope = await self._hydrate_envelope(envelope, normalized, is_index) or envelope
                 return self._cached_result(
                     normalized, envelope, cache_key, phase,
                     background_refresh_triggered=bg_triggered,
@@ -279,13 +404,21 @@ class DailyCacheService(_SeriesCacheCore):
                 is_live=DailyCacheKeyBuilder._is_live(to_date) if live is None else live,
                 symbol=normalized, is_index=is_index, clock=clock,
             ):
+                envelope = await self._hydrate_envelope(envelope, normalized, is_index) or envelope
                 return self._cached_result(normalized, envelope, cache_key, phase)
 
             cache = get_cache_client()
             try:
-                data, source, truncated = await self._pinned_fetch(
-                    normalized, "1day", from_date, to_date, is_index, user_id,
-                )
+                is_live = DailyCacheKeyBuilder._is_live(to_date) if live is None else live
+                if is_live:
+                    data, source, truncated, revision = await self._fetch_live_daily(
+                        normalized, from_date, to_date, is_index, user_id, clock,
+                    )
+                else:
+                    data, source, truncated = await self._pinned_fetch(
+                        normalized, "1day", from_date, to_date, is_index, user_id,
+                    )
+                    revision = 0
                 cache_key = self._build_key(normalized, "1day", from_date, to_date, is_index, live=live)
 
                 closed = phase == "closed"
@@ -294,15 +427,24 @@ class DailyCacheService(_SeriesCacheCore):
                 if not data:
                     eff_ttl = _EMPTY_RESULT_TTL
                 instrument_key, schema = series_identity(normalized, "1day", is_index)
+                cache_records = self._records_for_redis(data, "1day") if is_live else data
                 env = _build_envelope(
-                    data, phase, complete, stored_ttl=eff_ttl, truncated=truncated,
+                    cache_records, phase, complete, stored_ttl=eff_ttl, truncated=truncated,
                     data_date=clock.current_trading_date(),
                     instrument_key=instrument_key, schema=schema, publisher=source,
+                    revision=revision,
                 )
+                if is_live and len(cache_records) < len(data):
+                    env["header"]["coverage"]["head_only"] = True
 
                 await cache.set(cache_key, env, ttl=eff_ttl)
                 if source and data:
                     await self._write_pin(normalized, "1day", is_index, source)
+                if is_live:
+                    await self._on_series_committed(
+                        normalized, "1day", is_index, data, source, revision,
+                        truncated, clock, phase,
+                    )
 
                 return DailyFetchResult(
                     symbol=normalized,
