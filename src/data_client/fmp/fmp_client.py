@@ -6,6 +6,7 @@ see :func:`_format_sector_change_pct`.
 
 import asyncio
 import json
+import logging
 import os
 from collections import OrderedDict
 from datetime import date, datetime, timedelta, timezone
@@ -13,7 +14,34 @@ from typing import Any, Dict, List, Optional, Union
 
 import httpx
 
+from src.data_client.cn.symbols import is_cn_index
+
 _CACHE_MAX_SIZE = 512
+logger = logging.getLogger(__name__)
+
+
+def _strip_cn_index_params(params: Dict[str, Any]) -> Dict[str, Any] | None:
+    """Drop A-share indexes. FMP remaps ``000001.SS`` onto Ping An (``000001.SZ``).
+
+    Returns rewritten params, or ``None`` if nothing remains to query.
+    """
+    symbol = params.get("symbol")
+    if symbol and is_cn_index(str(symbol)):
+        return None
+    raw = params.get("symbols")
+    if raw is None:
+        return params
+    kept = [
+        p.strip()
+        for p in str(raw).split(",")
+        if p.strip() and not is_cn_index(p.strip())
+    ]
+    if not kept:
+        return None
+    joined = ",".join(kept)
+    if joined != str(raw):
+        return {**params, "symbols": joined}
+    return params
 
 
 class FMPRequestError(Exception):
@@ -112,6 +140,11 @@ class FMPClient:
         use_cache: bool = True,
     ) -> Union[Dict, List]:
         params = params or {}
+        filtered = _strip_cn_index_params(params)
+        if filtered is None:
+            logger.info("fmp.reject_cn_index | endpoint=%s params=%s", endpoint, params)
+            return []
+        params = filtered
 
         cache_key = f"{endpoint}:{json.dumps(params, sort_keys=True)}"
 

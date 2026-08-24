@@ -15,7 +15,9 @@ import json
 import logging
 import secrets
 import time
+from datetime import date, datetime, timedelta
 from typing import Any, Self
+from zoneinfo import ZoneInfo
 
 import httpx
 from cryptography.hazmat.primitives import hashes, serialization
@@ -27,11 +29,31 @@ logger = logging.getLogger(__name__)
 
 API_BASE = "https://webapi.futunn.com"
 
+# Vendor max ``num`` is 370. Wide start→end without paging returns oldest-first
+# and drops the recent window the chart actually wants — page instead.
+_KLINE_PAGE = 370
+_KLINE_MAX_PAGES = 8
+_SH_TZ = ZoneInfo("Asia/Shanghai")
+
 _KLINE_KTYPE = {
     "1min": 1, "3min": 10, "5min": 6, "10min": 26, "15min": 7,
     "30min": 8, "1hour": 9, "60min": 9, "2hour": 14, "120min": 14,
     "4hour": 15, "240min": 15,
 }
+
+
+def _kline_sort_key(row: dict[str, Any]) -> Any:
+    return row.get("time_key") or row.get("date") or 0
+
+
+def _kline_iso_date(row: dict[str, Any]) -> str | None:
+    from src.data_client.cn.bars import to_iso_date
+    return to_iso_date(str(row["date"])) if row.get("date") is not None else None
+
+
+def _shift_day(iso: str, days: int) -> str:
+    y, m, d = (int(p) for p in iso.split("-"))
+    return (date(y, m, d) + timedelta(days=days)).isoformat()
 
 
 class FutuRequestError(Exception):
@@ -155,17 +177,73 @@ class FutuClient:
 
     async def get_history_kline(self, symbol: str, *, ktype: int, autype: int = 0,
                                 start: str | None = None, end: str | None = None,
-                                num: int = 360) -> list[dict[str, Any]]:
+                                num: int = _KLINE_PAGE) -> list[dict[str, Any]]:
         """Historical K-line; ``ktype`` is the Futu ktype enum (see module doc).
 
-        ``start`` is omitted when it equals ``end`` — the same-day range returns
-        empty from the API even though data exists; ``end`` + ``num`` alone works.
+        ``end`` is required (``ret_code=-8`` without it). Unbounded calls
+        default ``end`` to today and page backwards; a bounded ``start`` pages
+        forward so a wide window does not stop on the oldest page. Same-day
+        ``start==end`` omits ``start`` — that range is empty even though
+        ``end`` + ``num`` has the bar. ``num`` is capped at the vendor max 370.
         """
-        q = f"ktype={ktype}&autype={autype}&num={num}"
+        from src.data_client.cn.bars import to_iso_date
+
+        end_iso = to_iso_date(end) or datetime.now(_SH_TZ).date().isoformat()
+        start_iso = to_iso_date(start)
+        page_num = min(num, _KLINE_PAGE)
+        rows: list[dict[str, Any]] = []
+        seen: set[Any] = set()
+
+        def absorb(page: list[dict[str, Any]]) -> None:
+            for row in page:
+                key = row.get("time_key") or row.get("date")
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append(row)
+
+        if not start_iso:
+            cursor_end = end_iso
+            for _ in range(_KLINE_MAX_PAGES):
+                page = await self._kline_page(
+                    symbol, ktype, autype, None, cursor_end, page_num,
+                )
+                if not page:
+                    break
+                absorb(page)
+                first = _kline_iso_date(min(page, key=_kline_sort_key))
+                if len(page) < page_num or not first:
+                    break
+                prev = _shift_day(first, -1)
+                if prev >= cursor_end:
+                    break
+                cursor_end = prev
+            return rows
+
+        cursor = start_iso
+        for _ in range(_KLINE_MAX_PAGES):
+            page = await self._kline_page(
+                symbol, ktype, autype, cursor, end_iso, page_num,
+            )
+            if not page:
+                break
+            absorb(page)
+            last = _kline_iso_date(max(page, key=_kline_sort_key))
+            if len(page) < page_num or not last or last >= end_iso:
+                break
+            nxt = _shift_day(last, 1)
+            if nxt <= cursor:
+                break
+            cursor = nxt
+        return rows
+
+    async def _kline_page(
+        self, symbol: str, ktype: int, autype: int,
+        start: str | None, end: str, num: int,
+    ) -> list[dict[str, Any]]:
+        q = f"ktype={ktype}&autype={autype}&num={num}&end={end}"
         if start and start != end:
             q += f"&start={start}"
-        if end:
-            q += f"&end={end}"
         data = await self._request("GET", f"/api/v1.0/quote/{symbol}/history-kline", q)
         return (data.get("data") or {}).get("kline_list") or []
 

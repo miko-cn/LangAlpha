@@ -24,6 +24,9 @@ _REFERER = {"Referer": "https://finance.sina.com.cn/"}
 # scale: 240 = daily, 5/15/30/60 = minute periods
 SCALE_DAILY = 240
 SCALE_MINUTE = {"5min": 5, "15min": 15, "30min": 30, "60min": 60}
+# Vendor accepts ~1200; 2000 returns []. 1023 ≈ 4y of daily / plenty of minutes.
+DATALEN_DAILY = 1023
+DATALEN_MINUTE = 320
 
 _QUOTE_RE = re.compile(r'hq_str_(\w+)="([^"]*)"')
 _JSONP_RE = re.compile(r"\((\[.*\])\);?\s*$", re.DOTALL)

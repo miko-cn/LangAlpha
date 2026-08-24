@@ -97,3 +97,63 @@ class TestFmpHeaderAuth:
         assert "apikey" not in kwargs["params"]
         assert client._cache
         assert all(_SECRET not in key for key in client._cache)
+
+
+class TestFmpRejectsCnIndex:
+    """FMP remaps ``000001.SS`` onto Ping An — never send A-share indexes."""
+
+    @pytest.mark.asyncio
+    async def test_profile_skips_http_for_sse_index(self):
+        get_mock = AsyncMock()
+        client = _client_with_mocked_http(get_mock)
+        try:
+            assert await client.get_profile("000001.SS") == []
+        finally:
+            await client.close()
+        get_mock.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_quote_skips_http_for_szse_index(self):
+        get_mock = AsyncMock()
+        client = _client_with_mocked_http(get_mock)
+        try:
+            assert await client.get_quote("399006.SZ") == []
+        finally:
+            await client.close()
+        get_mock.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_ping_an_stock_still_hits_http(self):
+        request = httpx.Request("GET", "https://financialmodelingprep.com/stable/profile")
+        response = httpx.Response(200, request=request, json=[{"symbol": "000001.SZ"}])
+        get_mock = AsyncMock(return_value=response)
+        client = _client_with_mocked_http(get_mock)
+        try:
+            rows = await client.get_profile("000001.SZ")
+        finally:
+            await client.close()
+        assert rows == [{"symbol": "000001.SZ"}]
+        get_mock.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_batch_quotes_strips_cn_index(self):
+        request = httpx.Request("GET", "https://financialmodelingprep.com/stable/batch-quote")
+        response = httpx.Response(200, request=request, json=[{"symbol": "AAPL"}])
+        get_mock = AsyncMock(return_value=response)
+        client = _client_with_mocked_http(get_mock)
+        try:
+            await client.get_batch_quotes(["AAPL", "000001.SS"])
+        finally:
+            await client.close()
+        params = get_mock.await_args.kwargs["params"]
+        assert params["symbols"] == "AAPL"
+
+    @pytest.mark.asyncio
+    async def test_batch_quotes_all_indexes_skips_http(self):
+        get_mock = AsyncMock()
+        client = _client_with_mocked_http(get_mock)
+        try:
+            assert await client.get_batch_quotes(["000001.SS", "399001.SZ"]) == []
+        finally:
+            await client.close()
+        get_mock.assert_not_awaited()

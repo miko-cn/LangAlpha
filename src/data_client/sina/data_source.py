@@ -9,20 +9,25 @@ chain falls through to Futu.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from src.data_client.base import FetchResult
-from src.data_client.cn.bars import make_bar, to_ms, sort_ascending
+from src.data_client.cn.bars import make_bar, sort_ascending, to_ms
 from src.data_client.cn.symbols import sina_symbol, split_app_symbol
 from src.data_client.market_data_provider import symbol_timezone
 
-from .sina_client import SCALE_DAILY, SCALE_MINUTE, SinaClient, SinaRequestError
+from .sina_client import (
+    DATALEN_DAILY,
+    DATALEN_MINUTE,
+    SCALE_DAILY,
+    SCALE_MINUTE,
+    SinaClient,
+    SinaRequestError,
+)
 
 logger = logging.getLogger(__name__)
 
-_UTC = timezone.utc
 _ET = ZoneInfo("America/New_York")
 
 # Realtime field indices (comma-separated, same for A-share and HK).
@@ -97,7 +102,7 @@ class SinaDataSource:
             raise SinaRequestError("Sina K-line has no HK data")
         tz = symbol_timezone(symbol)
         async with SinaClient() as client:
-            rows = await client.get_kline(sina_symbol(symbol), SCALE_DAILY)
+            rows = await client.get_kline(sina_symbol(symbol), SCALE_DAILY, DATALEN_DAILY)
         bars = []
         for r in rows:
             bars.append(make_bar(
@@ -124,7 +129,7 @@ class SinaDataSource:
             raise SinaRequestError(f"interval {interval!r} not supported by Sina")
         tz = symbol_timezone(symbol)
         async with SinaClient() as client:
-            rows = await client.get_kline(sina_symbol(symbol), scale)
+            rows = await client.get_kline(sina_symbol(symbol), scale, DATALEN_MINUTE)
         bars = []
         for r in rows:
             bars.append(make_bar(

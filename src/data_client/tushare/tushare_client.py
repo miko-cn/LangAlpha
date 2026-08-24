@@ -83,3 +83,11 @@ class TushareClient:
         data = await self.pro("daily", {"ts_code": ts_code, "start_date": start, "end_date": end})
         fields = data.get("fields") or []
         return [dict(zip(fields, row)) for row in (data.get("items") or [])]
+
+    async def get_index_daily(self, ts_code: str, start: str, end: str) -> list[dict[str, Any]]:
+        """Index EOD; ``ts_code`` like ``000001.SH`` — stock ``daily`` has no indexes."""
+        data = await self.pro(
+            "index_daily", {"ts_code": ts_code, "start_date": start, "end_date": end},
+        )
+        fields = data.get("fields") or []
+        return [dict(zip(fields, row)) for row in (data.get("items") or [])]

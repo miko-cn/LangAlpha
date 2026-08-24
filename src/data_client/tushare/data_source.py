@@ -20,7 +20,7 @@ from typing import Any
 from src.config.env import TUSHARE_ENABLED
 from src.data_client.base import FetchResult
 from src.data_client.cn.bars import VOLUME_LOT, make_bar, sort_ascending, to_ms
-from src.data_client.cn.symbols import tushare_code
+from src.data_client.cn.symbols import is_cn_index, tushare_code
 from src.data_client.market_data_provider import symbol_timezone
 
 from .tushare_client import TushareClient, TushareRequestError
@@ -50,7 +50,10 @@ class TushareDataSource:
         end = (to_date or "").replace("-", "") or _today_compact()
         tz = symbol_timezone(symbol)
         async with TushareClient() as client:
-            rows = await client.get_daily(ts_code, start, end)
+            if is_index or is_cn_index(symbol):
+                rows = await client.get_index_daily(ts_code, start, end)
+            else:
+                rows = await client.get_daily(ts_code, start, end)
         bars = [
             make_bar(
                 to_ms(r["trade_date"], tz, "%Y%m%d"),

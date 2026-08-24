@@ -39,3 +39,33 @@ class TestIndexRegionRouting:
 
     def test_cn_suffix_unchanged(self):
         assert symbol_market("000300.SS") == "cn"
+
+
+class TestCnIndexHeuristic:
+    def test_sse_csi_indexes(self):
+        from src.data_client.cn.symbols import is_cn_index
+
+        assert is_cn_index("000001.SS") is True
+        assert is_cn_index("000300.SS") is True
+        assert is_cn_index("000688.SS") is True
+
+    def test_szse_indexes(self):
+        from src.data_client.cn.symbols import is_cn_index
+
+        assert is_cn_index("399001.SZ") is True
+        assert is_cn_index("399006.SZ") is True
+
+    def test_same_digits_stock_is_not_index(self):
+        from src.data_client.cn.symbols import is_cn_index
+
+        assert is_cn_index("000001.SZ") is False  # 平安银行
+        assert is_cn_index("600519.SS") is False
+        assert is_cn_index("300750.SZ") is False
+
+    def test_iso_date_normalizes_compact(self):
+        from src.data_client.cn.bars import to_iso_date
+
+        assert to_iso_date("20000101") == "2000-01-01"
+        assert to_iso_date("2026-08-23") == "2026-08-23"
+        assert to_iso_date(None) is None
+        assert to_iso_date("") is None

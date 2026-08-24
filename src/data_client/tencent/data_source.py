@@ -9,19 +9,25 @@ endpoints — intraday for HK raises and the chain falls through to Futu.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from src.data_client.cn.bars import VOLUME_LOT, make_bar, minute_stamp_to_ms, to_ms, sort_ascending
-from src.data_client.cn.symbols import split_app_symbol, tencent_symbol
+from src.data_client.cn.bars import (
+    VOLUME_LOT,
+    make_bar,
+    minute_stamp_to_ms,
+    sort_ascending,
+    to_iso_date,
+    to_ms,
+)
+from src.data_client.cn.symbols import is_cn_index, split_app_symbol, tencent_symbol
 from src.data_client.market_data_provider import symbol_timezone
 
 from .tencent_client import MINUTE_PERIOD, TencentClient, TencentRequestError
 
 logger = logging.getLogger(__name__)
 
-_UTC = timezone.utc
 _ET = ZoneInfo("America/New_York")
 
 # Realtime field indices on the ``~``-split quoted string (skill-calibrated).
@@ -135,11 +141,13 @@ class TencentDataSource:
     ) -> list[dict[str, Any]]:
         market, _ = split_app_symbol(symbol)
         tz = symbol_timezone(symbol)
-        start = from_date or "20000101"
-        end = to_date or datetime.now(_UTC).date().isoformat()
+        # Empty bounds → latest 640. Mixed YYYYMMDD/ISO empties the vendor.
+        start = to_iso_date(from_date) or ""
+        end = to_iso_date(to_date) or ""
+        qfq = "" if (is_index or is_cn_index(symbol)) else "qfq"
         scale = _volume_scale(market)
         async with TencentClient() as client:
-            rows = await client.get_daily(tencent_symbol(symbol), start, end)
+            rows = await client.get_daily(tencent_symbol(symbol), start, end, qfq=qfq)
         bars = []
         for r in rows:
             if len(r) < 6:

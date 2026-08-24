@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from src.data_client.cn.symbols import is_cn_index
 from src.data_client.market_data_provider import symbol_timezone
 from src.data_client.normalize import (
     build_series,
@@ -27,7 +28,7 @@ from src.data_client.normalize import (
 )
 from src.market_protocol import InstrumentRef, Series
 
-from .fmp_client import FMPClient
+from .fmp_client import FMPClient, FMPRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,8 @@ class FMPDataSource:
         is_index: bool = False,
         user_id: str | None = None,
     ) -> list[dict[str, Any]]:
+        if is_cn_index(symbol):
+            raise FMPRequestError("FMP has no A-share index coverage")
         if interval not in self._SUPPORTED_INTERVALS:
             raise ValueError(
                 f"Interval '{interval}' is not supported by this data source"
@@ -127,6 +130,8 @@ class FMPDataSource:
         is_index: bool = False,
         user_id: str | None = None,
     ) -> list[dict[str, Any]]:
+        if is_cn_index(symbol):
+            raise FMPRequestError("FMP has no A-share index coverage")
         api_symbol = self._api_symbol(symbol, is_index)
         tz = symbol_timezone(symbol)
         scale = minor_unit_scale(symbol)
@@ -155,7 +160,10 @@ class FMPDataSource:
         api_symbols = [
             self._api_symbol(s, is_index=(asset_type == "indices"))
             for s in symbols
+            if not is_cn_index(s)
         ]
+        if not api_symbols:
+            return []
         async with FMPClient() as client:
             quotes = await client.get_batch_quotes(api_symbols)
         return [self._normalize_quote(q, asset_type) for q in (quotes or [])]

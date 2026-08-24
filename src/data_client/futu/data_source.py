@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 from src.config.env import FUTU_ENABLED
 from src.data_client.cn.bars import to_ms
-from src.data_client.cn.symbols import from_futu_symbol, futu_symbol
+from src.data_client.cn.symbols import from_futu_symbol, futu_symbol, is_cn_index
 from src.data_client.market_data_provider import symbol_timezone
 from src.utils.market_hours import current_market_phase
 
@@ -28,8 +28,14 @@ logger = logging.getLogger(__name__)
 
 _ET = ZoneInfo("America/New_York")
 
-# autype: 0=unadjusted, 1=forward-adjusted (ex-dividend). Charts want adjusted.
-_AUTYPE = 1
+# autype: 0=unadjusted, 1=forward-adjusted (ex-dividend). Charts want adjusted
+# stocks; indexes have no dividend factor (qfq is a no-op or empties some paths).
+_AUTYPE_QFQ = 1
+_AUTYPE_NONE = 0
+
+
+def _autype(symbol: str, is_index: bool) -> int:
+    return _AUTYPE_NONE if (is_index or is_cn_index(symbol)) else _AUTYPE_QFQ
 
 
 def _bar_time(row: dict[str, Any], tz: ZoneInfo) -> int:
@@ -89,7 +95,7 @@ class FutuDataSource:
         tz = symbol_timezone(symbol)
         async with FutuClient() as client:
             rows = await client.get_history_kline(
-                futu_symbol(symbol), ktype=ktype, autype=_AUTYPE,
+                futu_symbol(symbol), ktype=ktype, autype=_autype(symbol, is_index),
                 start=from_date, end=to_date,
             )
         bars = [self._normalize_bar(r, tz) for r in rows]
@@ -106,7 +112,7 @@ class FutuDataSource:
         tz = symbol_timezone(symbol)
         async with FutuClient() as client:
             rows = await client.get_history_kline(
-                futu_symbol(symbol), ktype=2, autype=_AUTYPE,
+                futu_symbol(symbol), ktype=2, autype=_autype(symbol, is_index),
                 start=from_date, end=to_date,
             )
         bars = [self._normalize_bar(r, tz) for r in rows]

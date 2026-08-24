@@ -12,14 +12,12 @@ daily) are scaled by ``VOLUME_LOT`` so every bar's ``volume`` is shares.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
 # Tushare ``vol`` (手) and Tencent A-share daily volume are lot counts; ×100 → shares.
 VOLUME_LOT = 100
-
-_UTC = timezone.utc
 
 
 def _as_float(value: Any) -> float:
@@ -27,6 +25,21 @@ def _as_float(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def to_iso_date(value: str | None) -> str | None:
+    """Normalize ``YYYYMMDD`` / ``YYYY-MM-DD`` to ``YYYY-MM-DD``; empty → None."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    if len(s) >= 10 and s[4] == "-":
+        return s[:10]
+    compact = s.replace("-", "")[:8]
+    if len(compact) == 8 and compact.isdigit():
+        return f"{compact[:4]}-{compact[4:6]}-{compact[6:8]}"
+    return None
 
 
 def to_ms(date_str: str | int, tz: ZoneInfo, fmt: str | None = None) -> int:

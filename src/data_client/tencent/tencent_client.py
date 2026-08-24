@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 QUOTE_URL = "https://qt.gtimg.cn/q="
 DAILY_URL = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
+# Indexes have no adjust factor; fqkline + qfq returns empty. Unadjusted kline.
+UNADJ_DAILY_URL = "https://web.ifzq.gtimg.cn/appstock/app/kline/kline"
 MINUTE_URL = "https://ifzq.gtimg.cn/appstock/app/kline/mkline"
 
 # App interval → Tencent minute period. A-share only; HK minute is unreliable.
@@ -76,13 +78,23 @@ class TencentClient:
         return await request_with_retry("tencent", _do)
 
     async def get_daily(self, code: str, start: str, end: str, qfq: str = "qfq") -> list[list[Any]]:
-        """Daily (前复权) K-line rows: ``[date, open, close, high, low, vol, ...]``."""
+        """Daily K-line rows: ``[date, open, close, high, low, vol, ...]``.
+
+        ``qfq`` empty → unadjusted ``kline/kline`` (indexes). Dates must both be
+        ``YYYY-MM-DD`` or both empty — mixing ``YYYYMMDD`` with ISO returns ``[]``.
+        Vendor cap is 640 bars (~2.5y).
+        """
         client = await self._get_client()
-        params = {"param": f"{code},day,{start},{end},640,{qfq}"}
+        if qfq:
+            url = DAILY_URL
+            param = f"{code},day,{start},{end},640,{qfq}"
+        else:
+            url = UNADJ_DAILY_URL
+            param = f"{code},day,{start},{end},640"
 
         async def _do() -> list[list[Any]]:
             try:
-                resp = await client.get(DAILY_URL, params=params)
+                resp = await client.get(url, params={"param": param})
                 resp.raise_for_status()
                 data = resp.json()
             except httpx.HTTPStatusError as e:
@@ -92,7 +104,7 @@ class TencentClient:
             except (httpx.RequestError, ValueError):
                 raise TencentRequestError("Tencent daily failed")
             node = (data.get("data") or {}).get(code, {})
-            rows = node.get(f"{qfq}day") or node.get("day") or []
+            rows = (node.get(f"{qfq}day") if qfq else None) or node.get("day") or []
             return [list(r) for r in rows if isinstance(r, list)]
 
         from src.data_client._ratelimit import request_with_retry

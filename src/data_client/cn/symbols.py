@@ -10,6 +10,10 @@ Vendor conventions differ sharply:
 
 The app never uses ``.SH`` (Shanghai is ``.SS``, matching Yahoo), so ``.SH``
 symbols are treated as unsupported rather than silently remapped.
+
+A-share indexes collide with stock codes across exchanges (``000001.SS`` is
+the SSE Composite; ``000001.SZ`` is Ping An Bank), so index detection is
+market+prefix, not the numeric code alone.
 """
 
 from __future__ import annotations
@@ -93,3 +97,21 @@ def tencent_symbol(symbol: str) -> str:
 def sina_symbol(symbol: str) -> str:
     """App symbol → Sina key; identical layout to Tencent."""
     return tencent_symbol(symbol)
+
+
+def is_cn_index(symbol: str) -> bool:
+    """True for A-share indexes: ``000xxx.SS`` (SSE/CSI) or ``399xxx.SZ`` (SZSE).
+
+    Shanghai stocks are ``6xxxxx.SS``; Shenzhen stocks occupy ``000/001/002/300``.
+    The same six-digit code can be a stock on one venue and an index on the
+    other, so the suffix is load-bearing.
+    """
+    try:
+        market, code = split_app_symbol(symbol)
+    except UnsupportedSymbolError:
+        return False
+    if market == "sh":
+        return code.startswith("000")
+    if market == "sz":
+        return code.startswith("399")
+    return False
