@@ -7,6 +7,7 @@ import { ModelSelector } from "./ModelSelector"
 import type { ProviderModelsData } from "./types"
 import type { ModelAccess } from "@/types/platform"
 import type { CompactionProfileCatalog, CompactionProfileName } from "@/hooks/useAllModels"
+import { modelDisplayLabel, type ModelMetadataEntry } from "@/hooks/useFilteredModels"
 
 export interface ModelTierConfigProps {
   /** Available models grouped by provider */
@@ -49,6 +50,8 @@ export interface ModelTierConfigProps {
   compactionProfiles?: CompactionProfileCatalog | null
   /** Optional access map: model name → access type for badge display */
   modelAccess?: Record<string, ModelAccess>
+  /** Optional metadata for display_name / model_id labels. */
+  metadata?: Record<string, ModelMetadataEntry>
 }
 
 // ---------------------------------------------------------------------------
@@ -60,11 +63,13 @@ function FallbackModelsPicker({
   onChange,
   models,
   filterProviders,
+  metadata,
 }: {
   selected: string[]
   onChange: (models: string[]) => void
   models: Record<string, ProviderModelsData>
   filterProviders?: string[]
+  metadata?: Record<string, ModelMetadataEntry>
 }) {
   const [showAdd, setShowAdd] = useState(false)
   const [search, setSearch] = useState("")
@@ -108,7 +113,10 @@ function FallbackModelsPicker({
       if (filterProviders && !filterProviders.includes(provider)) continue
       const provModels = pd.models ?? []
       const filtered = query
-        ? provModels.filter((m) => m.toLowerCase().includes(query))
+        ? provModels.filter((m) => {
+            const label = modelDisplayLabel(m, metadata?.[m]).toLowerCase()
+            return m.toLowerCase().includes(query) || label.includes(query)
+          })
         : provModels
       if (filtered.length > 0) {
         groups.push({
@@ -119,7 +127,7 @@ function FallbackModelsPicker({
       }
     }
     return groups
-  }, [models, filterProviders, search])
+  }, [models, filterProviders, search, metadata])
 
   return (
     <div ref={containerRef} className="flex flex-col gap-1.5">
@@ -148,13 +156,13 @@ function FallbackModelsPicker({
               color: "var(--color-text-secondary)",
             }}
           >
-            {m}
+            {modelDisplayLabel(m, metadata?.[m])}
             <button
               type="button"
               onClick={() => handleRemove(m)}
               className="ml-0.5 hover:opacity-70"
               style={{ color: "var(--color-text-tertiary)" }}
-              aria-label={`Remove ${m}`}
+              aria-label={`Remove ${modelDisplayLabel(m, metadata?.[m])}`}
             >
               &times;
             </button>
@@ -239,7 +247,7 @@ function FallbackModelsPicker({
                         if (!isSelected) e.currentTarget.style.backgroundColor = "transparent"
                       }}
                     >
-                      <span>{m}</span>
+                      <span>{modelDisplayLabel(m, metadata?.[m])}</span>
                       {isSelected && (
                         <Pin
                           className="h-3 w-3 flex-shrink-0"
@@ -389,6 +397,7 @@ export function ModelTierConfig({
   onAdvancedModelsChange,
   modelAccess,
   compactionProfiles,
+  metadata,
 }: ModelTierConfigProps) {
   const [explainerOpen, setExplainerOpen] = useState(true)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -553,6 +562,7 @@ export function ModelTierConfig({
         placeholder="Select primary model..."
         required
         modelAccess={modelAccess}
+        metadata={metadata}
       />
 
       {/* Flash Model selector */}
@@ -566,6 +576,7 @@ export function ModelTierConfig({
         placeholder="Select flash model..."
         required
         modelAccess={modelAccess}
+        metadata={metadata}
       />
 
       {/* Advanced section */}
@@ -609,6 +620,7 @@ export function ModelTierConfig({
                     filterProviders={filterProviders}
                     placeholder="Defaults to flash model"
                     modelAccess={modelAccess}
+                    metadata={metadata}
                   />
 
                   <ModelSelector
@@ -620,6 +632,7 @@ export function ModelTierConfig({
                     filterProviders={filterProviders}
                     placeholder="Defaults to flash model"
                     modelAccess={modelAccess}
+                    metadata={metadata}
                   />
 
                   <CompactionProfilePicker
@@ -634,6 +647,7 @@ export function ModelTierConfig({
                     onChange={(list) => handleAdvancedChange("fallbackModels", list)}
                     models={models}
                     filterProviders={filterProviders}
+                    metadata={metadata}
                   />
                 </div>
               </motion.div>

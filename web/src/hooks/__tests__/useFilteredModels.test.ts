@@ -6,11 +6,26 @@ import {
   buildConfiguredTypeMap,
   buildConfiguredSet,
   buildVisibleModels,
+  modelDisplayLabel,
 } from '../useFilteredModels';
 import type { ModelMetadataEntry } from '../useFilteredModels';
 import type { ConfiguredProvider } from '../useConfiguredProviders';
 import type { ProviderModelsData } from '@/components/model/types';
 import type { PlatformModelsResponse } from '@/types/platform';
+
+describe('modelDisplayLabel', () => {
+  it('prefers authored display_name over catalog slug', () => {
+    expect(modelDisplayLabel('minimax-cn-m3', {
+      display_name: 'MiniMax-M3',
+      model_id: 'MiniMax-M3',
+    })).toBe('MiniMax-M3');
+  });
+
+  it('falls back to model_id then the catalog key', () => {
+    expect(modelDisplayLabel('minimax-cn-m3', { model_id: 'MiniMax-M3' })).toBe('MiniMax-M3');
+    expect(modelDisplayLabel('minimax-cn-m3')).toBe('minimax-cn-m3');
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -10,6 +10,7 @@ import { ModelTierConfig } from '@/components/model/ModelTierConfig';
 import type { ByokProvider, CustomModelEntry } from '@/components/model/types';
 import { useAllModels } from '@/hooks/useAllModels';
 import type { CompactionProfileName } from '@/hooks/useAllModels';
+import { modelDisplayLabel } from '@/hooks/useFilteredModels';
 import { useDebouncedSave } from '@/hooks/useDebouncedSave';
 import { isPlatformMode } from '@/config/hostMode';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +25,7 @@ export function ModelTab() {
   const { user: authUser } = useUser();
   const { preferences: prefsData } = usePreferences();
   const updatePrefsMutation = useUpdatePreferences();
-  const { models: visibleModels, modelAccessMap, systemDefaults: hookSystemDefaults, validModelNames, compactionProfiles, searchProviders, isLoading: isModelsLoading } = useAllModels();
+  const { models: visibleModels, metadata: modelLabels, modelAccessMap, systemDefaults: hookSystemDefaults, validModelNames, compactionProfiles, searchProviders, isLoading: isModelsLoading } = useAllModels();
   const { t } = useTranslation();
 
   // Model tab state
@@ -226,6 +227,7 @@ export function ModelTab() {
             systemDefaults={hookSystemDefaults ?? undefined}
             modelAccess={modelAccessMap}
             compactionProfiles={compactionProfiles}
+            metadata={modelLabels}
           />
 
           {/* Quick-access models — compact strip */}
@@ -248,13 +250,13 @@ export function ModelTab() {
                     color: 'var(--color-text-secondary)',
                   }}
                 >
-                  {key}
+                  {modelDisplayLabel(key, modelLabels[key])}
                   <button
                     type="button"
                     onClick={() => { setStarredModels(prev => prev.filter(k => k !== key)); triggerModelSave(); }}
                     className="ml-0.5 hover:opacity-70"
                     style={{ color: 'var(--color-text-tertiary)' }}
-                    aria-label={`Remove ${key}`}
+                    aria-label={`Remove ${modelDisplayLabel(key, modelLabels[key])}`}
                   >
                     &times;
                   </button>
@@ -305,7 +307,10 @@ export function ModelTab() {
                   const models: string[] = providerData?.models || [];
                   const query = modelPickerSearch.toLowerCase();
                   const filtered = query
-                    ? models.filter(m => m.toLowerCase().includes(query))
+                    ? models.filter((m) => {
+                        const label = modelDisplayLabel(m, modelLabels[m]).toLowerCase();
+                        return m.toLowerCase().includes(query) || label.includes(query);
+                      })
                     : models;
                   if (filtered.length === 0) return null;
                   const displayName = providerData?.display_name || provider.charAt(0).toUpperCase() + provider.slice(1);
@@ -331,7 +336,7 @@ export function ModelTab() {
                             onMouseEnter={(e) => { if (!isStarred) e.currentTarget.style.backgroundColor = 'var(--color-bg-elevated)'; }}
                             onMouseLeave={(e) => { if (!isStarred) e.currentTarget.style.backgroundColor = 'transparent'; }}
                           >
-                            <span>{m}</span>
+                            <span>{modelDisplayLabel(m, modelLabels[m])}</span>
                             {isStarred && <Pin className="h-3 w-3 flex-shrink-0" style={{ color: 'var(--color-accent-primary)' }} />}
                           </button>
                         );

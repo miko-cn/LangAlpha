@@ -58,13 +58,25 @@ def apply_reasoning_effort(
         else:
             parameters["reasoning"] = {"effort": _clamp(level)}
 
-    # Anthropic adaptive: control via output_config.effort (supports xhigh natively)
-    elif "output_config" in parameters or (
+    # Anthropic adaptive: control via output_config.effort (supports xhigh
+    # natively). Gated on the output_config key so MiniMax-M3 — which also
+    # uses thinking.type=adaptive, but only accepts adaptive|disabled —
+    # doesn't get a Claude budget/effort payload.
+    elif "output_config" in parameters:
+        parameters.setdefault("output_config", {})["effort"] = level
+
+    # MiniMax-M3 (Anthropic-compat and OpenAI-compat): official enum is
+    # adaptive|disabled. "enabled" and budget_tokens are Claude vocabulary
+    # and are rejected or ignored. low → off; anything else → on.
+    elif (
         "thinking" in parameters
         and isinstance(parameters["thinking"], dict)
-        and parameters["thinking"].get("type") == "adaptive"
+        and parameters["thinking"].get("type") in ("adaptive", "disabled")
     ):
-        parameters.setdefault("output_config", {})["effort"] = level
+        parameters["thinking"]["type"] = (
+            "disabled" if level == "low" else "adaptive"
+        )
+        parameters["thinking"].pop("budget_tokens", None)
 
     # Anthropic enabled: control via budget_tokens
     elif "thinking" in parameters:
@@ -91,13 +103,23 @@ def apply_reasoning_effort(
 
     # --- extra_body patterns ---
 
-    # Volcengine / Doubao: extra_body.thinking.type
+    # extra_body.thinking.type — two vocabularies share this key:
+    # MiniMax-M3 (CN OpenAI) ships type=adaptive; Doubao/GLM ship type=enabled.
+    # Detect off the current type so a disabled→on flip keeps the vendor's on-word.
     if "thinking" in extra_body:
+        current = (
+            extra_body["thinking"].get("type")
+            if isinstance(extra_body["thinking"], dict)
+            else None
+        )
+        on_type = "adaptive" if current == "adaptive" else "enabled"
         if isinstance(extra_body["thinking"], dict):
-            extra_body["thinking"]["type"] = "disabled" if level == "low" else "enabled"
+            extra_body["thinking"]["type"] = (
+                "disabled" if level == "low" else on_type
+            )
         else:
             extra_body["thinking"] = {
-                "type": "disabled" if level == "low" else "enabled"
+                "type": "disabled" if level == "low" else on_type
             }
 
     # Dashscope / Qwen: extra_body.enable_thinking

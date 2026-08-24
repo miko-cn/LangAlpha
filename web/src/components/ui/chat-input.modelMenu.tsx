@@ -17,16 +17,17 @@ import { derivePrimaryModels } from './chat-input.models';
 const TRIGGER_CLASS = 'inline-flex min-w-0 items-center gap-1 rounded-full py-1.5 px-2.5 text-[0.8125rem] font-medium border border-transparent whitespace-nowrap';
 
 function TriggerBody({
-  selectedModel, fastMode, isCodexModel, accent,
+  selectedModel, fastMode, isCodexModel, accent, metadata,
 }: {
   selectedModel: string | null;
   fastMode: boolean;
   isCodexModel: boolean;
   accent?: boolean;
+  metadata?: Record<string, { display_name?: string }>;
 }) {
   return (
     <>
-      <span className="min-w-0 max-w-[120px] truncate">{getModelDisplayName(selectedModel) || 'Model'}</span>
+      <span className="min-w-0 max-w-[120px] truncate">{getModelDisplayName(selectedModel, selectedModel ? metadata?.[selectedModel] : null) || 'Model'}</span>
       {fastMode && isCodexModel && (
         <Rocket className="h-3 w-3 flex-none" style={accent ? { color: 'var(--color-accent-light)' } : undefined} />
       )}
@@ -40,6 +41,7 @@ export function ModelTriggerMeasure(props: {
   selectedModel: string | null;
   fastMode: boolean;
   isCodexModel: boolean;
+  metadata?: Record<string, { display_name?: string }>;
 }) {
   return <button type="button" tabIndex={-1} className={TRIGGER_CLASS}><TriggerBody {...props} /></button>;
 }
@@ -65,6 +67,7 @@ export function ChatInputModelMenu({
   supportsXhigh,
   dropdownDirection,
   containerRef,
+  metadata,
 }: {
   selectedModel: string | null;
   onSelectModel: (model: string) => void;
@@ -82,6 +85,7 @@ export function ChatInputModelMenu({
   dropdownDirection: 'up' | 'down';
   /** Mobile portals into the composer so the menu can't escape the sheet. */
   containerRef: RefObject<HTMLElement | null>;
+  metadata?: Record<string, { display_name?: string }>;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -105,7 +109,7 @@ export function ChatInputModelMenu({
           type="button"
           title="Select model"
         >
-          <TriggerBody selectedModel={selectedModel} fastMode={fastMode} isCodexModel={isCodexModel} accent />
+          <TriggerBody selectedModel={selectedModel} fastMode={fastMode} isCodexModel={isCodexModel} accent metadata={metadata} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -125,7 +129,7 @@ export function ChatInputModelMenu({
             className="text-[0.8125rem] justify-between"
             style={{ color: 'var(--color-text-primary)' }}
           >
-            <span>{getModelDisplayName(m)}</span>
+            <span>{getModelDisplayName(m, metadata?.[m])}</span>
             {m === selectedModel && <Check className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--color-accent-primary)' }} />}
           </DropdownMenuItem>
         ))}
@@ -208,7 +212,7 @@ export function ChatInputModelMenu({
                       setMenuOpen(false);
                     }}
                   >
-                    <span>{getModelDisplayName(m)}</span>
+                    <span>{getModelDisplayName(m, metadata?.[m])}</span>
                     {m === selectedModel && <Check className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--color-accent-primary)' }} />}
                   </div>
                 ))
@@ -251,7 +255,7 @@ export function ChatInputModelMenu({
                     className="text-[0.8125rem] justify-between"
                     style={{ color: 'var(--color-text-primary)' }}
                   >
-                    <span>{getModelDisplayName(m)}</span>
+                    <span>{getModelDisplayName(m, metadata?.[m])}</span>
                     {m === selectedModel && <Check className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--color-accent-primary)' }} />}
                   </DropdownMenuItem>
                 ))

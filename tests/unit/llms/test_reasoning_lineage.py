@@ -89,6 +89,7 @@ class TestNoAccidentalMerges:
         for a, b in (
             ("moonshot", "moonshot-coding"),
             ("minimax", "minimax-coding"),
+            ("minimax-cn", "minimax-cn-coding"),
             ("doubao-anthropic", "doubao-coding"),
             ("z-ai", "z-ai-coding"),
         ):

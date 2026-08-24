@@ -42,6 +42,22 @@ describe('ModelSelector', () => {
     expect(screen.getByRole('option', { name: 'claude-sonnet-4-20250514' })).toBeInTheDocument();
   });
 
+  it('renders authored display_name instead of the catalog slug', () => {
+    render(
+      <ModelSelector
+        {...defaultProps}
+        models={{
+          'minimax-cn': { display_name: 'MiniMax (CN)', models: ['minimax-cn-m3'] },
+        }}
+        metadata={{
+          'minimax-cn-m3': { display_name: 'MiniMax-M3', model_id: 'MiniMax-M3' },
+        }}
+      />,
+    );
+    expect(screen.getByRole('option', { name: 'MiniMax-M3' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'minimax-cn-m3' })).toBeNull();
+  });
+
   it('shows label and description', () => {
     render(<ModelSelector {...defaultProps} />);
 

@@ -184,6 +184,8 @@ class ModelConfig:
                 "intelligence",
                 "context",
                 "input_modalities",
+                "display_name",
+                "model_id",
             ):
                 if key in model_info:
                     entry[key] = model_info[key]

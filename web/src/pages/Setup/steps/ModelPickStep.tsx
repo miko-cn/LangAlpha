@@ -11,6 +11,7 @@ import { useUpdatePreferences } from '@/hooks/useUpdatePreferences';
 import { useTranslation } from 'react-i18next';
 import { slugifyModelName } from './slugifyModelName';
 import { computeSlotCleanup } from './modelSlotCleanup';
+import { modelDisplayLabel } from '@/hooks/useFilteredModels';
 
 // ---------------------------------------------------------------------------
 // ModelPickStep — Step 4: Choose which models to add to the configured model list.
@@ -578,7 +579,7 @@ export default function ModelPickStep() {
           {displayModels.map((model) => {
             const isChecked = selected.has(model);
             const meta = modelMetadata[model] ?? {};
-            const label = (meta.display_name as string) ?? model;
+            const label = modelDisplayLabel(model, meta);
             const isCustom = !builtInSet.has(model);
             return (
               <div

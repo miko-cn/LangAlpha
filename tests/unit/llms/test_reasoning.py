@@ -86,11 +86,18 @@ class TestAnthropicAdaptive:
         assert params["output_config"]["effort"] == "high"
 
     def test_thinking_adaptive_type(self):
-        """When thinking.type == 'adaptive', sets output_config.effort."""
-        params = {"thinking": {"type": "adaptive"}}
+        """Anthropic adaptive is gated on output_config, not thinking.type alone.
+
+        thinking.type=adaptive without output_config is MiniMax-M3's shape.
+        """
+        params = {
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": "medium"},
+        }
         extra = {}
         apply_reasoning_effort("low", params, extra)
         assert params["output_config"]["effort"] == "low"
+        assert params["thinking"]["type"] == "adaptive"
 
     @pytest.mark.parametrize("level", ["low", "medium", "high", "xhigh"])
     def test_all_levels(self, level):
@@ -101,10 +108,49 @@ class TestAnthropicAdaptive:
 
     def test_xhigh_passes_through(self):
         """Anthropic adaptive natively supports xhigh — must pass through, not clamp."""
-        params = {"thinking": {"type": "adaptive"}}
+        params = {
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": "high"},
+        }
         extra = {}
         apply_reasoning_effort("xhigh", params, extra)
         assert params["output_config"]["effort"] == "xhigh"
+
+
+# ---------------------------------------------------------------------------
+# MiniMax-M3: thinking.type is adaptive|disabled only (no budget_tokens)
+# ---------------------------------------------------------------------------
+
+
+class TestMiniMaxThinking:
+    @pytest.mark.parametrize("level", ["medium", "high", "xhigh"])
+    def test_parameters_on_is_adaptive(self, level):
+        params = {"thinking": {"type": "disabled"}}
+        extra = {}
+        apply_reasoning_effort(level, params, extra)
+        assert params["thinking"] == {"type": "adaptive"}
+        assert "budget_tokens" not in params["thinking"]
+        assert "output_config" not in params
+
+    def test_parameters_low_disables(self):
+        params = {"thinking": {"type": "adaptive", "budget_tokens": 8000}}
+        extra = {}
+        apply_reasoning_effort("low", params, extra)
+        assert params["thinking"]["type"] == "disabled"
+        assert "budget_tokens" not in params["thinking"]
+
+    @pytest.mark.parametrize("level", ["medium", "high"])
+    def test_extra_body_keeps_adaptive(self, level):
+        params = {}
+        extra = {"thinking": {"type": "adaptive"}}
+        apply_reasoning_effort(level, params, extra)
+        assert extra["thinking"]["type"] == "adaptive"
+
+    def test_extra_body_low_disables(self):
+        params = {}
+        extra = {"thinking": {"type": "adaptive"}}
+        apply_reasoning_effort("low", params, extra)
+        assert extra["thinking"]["type"] == "disabled"
 
 
 # ---------------------------------------------------------------------------

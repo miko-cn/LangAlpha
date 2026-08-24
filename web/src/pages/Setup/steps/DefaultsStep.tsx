@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function DefaultsStep() {
   const navigate = useNavigate();
-  const { models, modelAccessMap, systemDefaults, isLoading } = useAllModels();
+  const { models, modelAccessMap, systemDefaults, isLoading, metadata } = useAllModels();
   const { preferences } = usePreferences();
   const updatePreferences = useUpdatePreferences();
   const { t } = useTranslation();
@@ -160,6 +160,7 @@ export default function DefaultsStep() {
         onAdvancedModelsChange={handleAdvancedChange}
         systemDefaults={systemDefaults ?? undefined}
         modelAccess={modelAccessMap}
+        metadata={metadata}
       />
 
       {/* Error */}

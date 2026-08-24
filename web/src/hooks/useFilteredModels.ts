@@ -19,6 +19,18 @@ export interface ModelMetadataEntry {
   oauth_plans?: string[];
   /** True for user-added custom models — bypasses all access filters. */
   is_custom_model?: boolean;
+  /** Authored UI label. Prefer this over the catalog slug. */
+  display_name?: string;
+  /** Upstream API model id (e.g. MiniMax-M3). */
+  model_id?: string;
+}
+
+/** User-facing model label: authored name → upstream id → catalog slug. */
+export function modelDisplayLabel(
+  key: string,
+  meta?: Pick<ModelMetadataEntry, 'display_name' | 'model_id'> | null,
+): string {
+  return meta?.display_name || meta?.model_id || key;
 }
 
 /** Key for the (group, name) pair in customPairs — '::' can't collide with any provider or model name. */

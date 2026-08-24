@@ -66,8 +66,12 @@ export function slashRank(item: SlashCommand, query: string): number {
 }
 
 /** Derive a short display name from a model key string. */
-export function getModelDisplayName(key: string | null): string {
+export function getModelDisplayName(
+  key: string | null,
+  meta?: { display_name?: string; model_id?: string } | null,
+): string {
   if (!key) return '';
+  if (meta?.display_name) return meta.display_name;
   let name = key;
   // Strip common provider prefixes
   for (const prefix of ['claude-', 'gpt-', 'chatgpt-', 'o1-', 'o3-', 'o4-']) {

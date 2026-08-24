@@ -816,7 +816,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
                   <span key={item.id} data-measure={item.id}>{item.inline({ measureOnly: true })}</span>
                 ))}
                 <span data-measure="model">
-                  <ModelTriggerMeasure selectedModel={selectedModel} fastMode={fastMode} isCodexModel={isCodexModel} />
+                  <ModelTriggerMeasure selectedModel={selectedModel} fastMode={fastMode} isCodexModel={isCodexModel} metadata={modelMetadata} />
                 </span>
               </div>
             </div>
@@ -838,6 +838,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
                 supportsXhigh={supportsXhigh}
                 dropdownDirection={dropdownDirection}
                 containerRef={chatContainerRef}
+                metadata={modelMetadata}
               />
               {/* Voice Input Button (Show only if enabled in user settings) */}
               {speechSupported && !isLoading && !!otherPref?.voice_input_enabled && (

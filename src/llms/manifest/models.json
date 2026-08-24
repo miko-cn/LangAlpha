@@ -196,6 +196,9 @@
       "max_tokens": 64000,
       "thinking": {
         "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "high"
       }
     }
   },
@@ -739,6 +742,7 @@
   "minimax-m3": {
     "model_id": "MiniMax-M3",
     "provider": "minimax",
+    "display_name": "MiniMax-M3",
     "visible": true,
     "speed": 1,
     "intelligence": 4,
@@ -746,7 +750,7 @@
     "parameters": {
       "max_tokens": 128000,
       "thinking": {
-        "type": "enabled"
+        "type": "adaptive"
       }
     },
     "input_modalities": [
@@ -757,15 +761,13 @@
   "minimax-m2.7": {
     "model_id": "MiniMax-M2.7",
     "provider": "minimax",
+    "display_name": "MiniMax-M2.7",
     "visible": true,
     "speed": 2,
     "intelligence": 4,
     "context": 200000,
     "parameters": {
-      "max_tokens": 128000,
-      "thinking": {
-        "type": "enabled"
-      }
+      "max_tokens": 128000
     },
     "input_modalities": [
       "text"
@@ -774,15 +776,13 @@
   "minimax-m2.7-highspeed": {
     "model_id": "MiniMax-M2.7-highspeed",
     "provider": "minimax",
+    "display_name": "MiniMax-M2.7-highspeed",
     "visible": true,
     "speed": 2,
     "intelligence": 4,
     "context": 200000,
     "parameters": {
-      "max_tokens": 128000,
-      "thinking": {
-        "type": "enabled"
-      }
+      "max_tokens": 128000
     },
     "input_modalities": [
       "text"
@@ -805,13 +805,16 @@
   "minimax-cn-m3": {
     "model_id": "MiniMax-M3",
     "provider": "minimax-cn",
-    "display_name": "MiniMax M3 (CN)",
+    "display_name": "MiniMax-M3",
     "visible": true,
     "speed": 1,
     "intelligence": 4,
     "context": 512000,
     "parameters": {
-      "max_tokens": 128000
+      "max_tokens": 128000,
+      "thinking": {
+        "type": "adaptive"
+      }
     },
     "input_modalities": [
       "text"
@@ -1262,6 +1265,9 @@
       "max_tokens": 64000,
       "thinking": {
         "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "high"
       }
     }
   },

@@ -1602,13 +1602,20 @@
       }
     },
     "minimax-cn": {
-      "sdk": "openai",
-      "base_url": "https://api.minimaxi.com/v1",
+      "sdk": "anthropic",
+      "base_url": "https://api.minimaxi.com/anthropic",
       "env_key": "MINIMAX_CN_API_KEY",
       "access_type": "api_key",
       "byok_eligible": true,
       "display_name": "MiniMax (CN)",
-      "use_response_api": false
+      "variants": {
+        "minimax-cn-coding": {
+          "base_url": "https://api.minimaxi.com/anthropic",
+          "env_key": "MINIMAX_CN_CODING_API_KEY",
+          "access_type": "coding_plan",
+          "region": "cn"
+        }
+      }
     },
     "openrouter": {
       "sdk": "deepseek",

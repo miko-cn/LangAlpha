@@ -97,3 +97,48 @@ class TestManifestIntegrity:
                 assert "text" in modalities, (
                     f"{model_name}: input_modalities missing 'text': {modalities}"
                 )
+
+    def test_minimax_cn_coding_plan_is_wired(self, model_config):
+        """MiniMax (CN) must show in both API-key and Coding Plan catalogs.
+
+        Token Plan on the CN endpoint is Anthropic-compat
+        (``https://api.minimaxi.com/anthropic``), not the OpenAI /v1 paygo
+        route used by the ``minimax-cn`` API-key brand.
+        """
+        info = model_config.get_provider_info("minimax-cn-coding")
+        assert info, "minimax-cn-coding missing after flatten"
+        assert info["sdk"] == "anthropic"
+        assert info["base_url"] == "https://api.minimaxi.com/anthropic"
+        assert info["access_type"] == "coding_plan"
+        assert info["env_key"] == "MINIMAX_CN_CODING_API_KEY"
+        assert model_config.get_parent_provider("minimax-cn-coding") == "minimax-cn"
+        assert model_config.get_display_name("minimax-cn-coding") == "MiniMax (CN)"
+        assert model_config.get_provider_info("minimax-cn")["sdk"] == "anthropic"
+        assert model_config.get_provider_info("minimax-cn")["base_url"] == (
+            "https://api.minimaxi.com/anthropic"
+        )
+
+        meta = model_config.get_model_metadata()["minimax-cn-m3"]
+        assert meta["display_name"] == "MiniMax-M3"
+        assert meta["model_id"] == "MiniMax-M3"
+
+        from src.server.app.api_keys import _build_provider_catalog
+
+        _build_provider_catalog.cache_clear()
+        try:
+            by_provider = {e["provider"]: e for e in _build_provider_catalog()}
+        finally:
+            _build_provider_catalog.cache_clear()
+
+        api_key = by_provider["minimax-cn"]
+        assert api_key["access_type"] == "api_key"
+        assert api_key["display_name"] == "MiniMax (CN)"
+        assert api_key["sdk"] == "anthropic"
+        assert api_key["base_url"] == "https://api.minimaxi.com/anthropic"
+
+        coding = by_provider["minimax-cn-coding"]
+        assert coding["access_type"] == "coding_plan"
+        assert coding["brand_key"] == "minimax-cn"
+        assert coding["sdk"] == "anthropic"
+        assert coding["base_url"] == "https://api.minimaxi.com/anthropic"
+        assert coding["display_name"] == "MiniMax (CN)"
