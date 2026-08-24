@@ -31,4 +31,21 @@ describe('createRequestKeyTracker', () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
   });
+
+  it('still mints a UUID when crypto.randomUUID is missing', () => {
+    const desc = Object.getOwnPropertyDescriptor(globalThis.crypto, 'randomUUID');
+    Object.defineProperty(globalThis.crypto, 'randomUUID', {
+      value: undefined,
+      configurable: true,
+    });
+    try {
+      const tracker = createRequestKeyTracker();
+      expect(tracker.take('lan')).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+    } finally {
+      if (desc) Object.defineProperty(globalThis.crypto, 'randomUUID', desc);
+      else delete (globalThis.crypto as { randomUUID?: unknown }).randomUUID;
+    }
+  });
 });

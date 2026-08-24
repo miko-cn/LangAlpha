@@ -1,3 +1,5 @@
+import { randomUuid } from '../../utils/uuid';
+
 /**
  * Idempotency key for a logical send (v4 attempt chain).
  *
@@ -23,7 +25,7 @@ export function createRequestKeyTracker(): RequestKeyTracker {
     if (pending && pending.fingerprint === fingerprint) {
       return pending.key;
     }
-    pending = { key: crypto.randomUUID(), fingerprint };
+    pending = { key: randomUuid(), fingerprint };
     return pending.key;
   }
 
