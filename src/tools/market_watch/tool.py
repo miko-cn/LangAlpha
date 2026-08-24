@@ -56,8 +56,10 @@ async def watch_market(
     unnecessary for them.
 
     Args:
-        symbols: Ticker symbols (e.g. ["NVDA", "TSLA"]). Required to watch;
-            with action="unwatch", omit to stop watching everything.
+        symbols: Market-native tickers (e.g. ["NVDA", "600519.SS", "0700.HK"]).
+            US bare / "^GSPC"; A-share ".SS"/".SZ" (never .SH); HK ".HK";
+            Hang Seng "800000.HK" not "^HSI". Required to watch; with
+            action="unwatch", omit to stop watching everything.
         action: "watch" (default) to start watching, "unwatch" to stop.
     """
     thread_id = _thread_id(config)

@@ -46,6 +46,14 @@ stale.
 - Before you state a price in a final answer: if the newest feed entry is
   more than a minute old, make one `get_quote` call to re-check first.
 
+## Ticker grammar
+
+`watch_market` uses the same local-vendor spelling as `get_quote`:
+
+- US stock `AAPL`; US index `^GSPC`
+- A-share `600519.SS` / `000001.SZ` (Shanghai is `.SS`, never `.SH`)
+- HK stock `0700.HK`; Hang Seng `800000.HK` — not Yahoo `^HSI`
+
 ## Mechanics to know
 
 - Stamps only flow while the market session is open — expect no feed

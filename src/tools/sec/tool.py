@@ -297,7 +297,7 @@ async def _fetch_8k_filings(symbol: str) -> Tuple[str, Dict[str, Any]]:
 
 @tool(response_format="content_and_artifact")
 async def get_sec_filing(
-    symbol: Annotated[str, "Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'NVDA')"],
+    symbol: Annotated[str, "US-listed ticker only (e.g. 'AAPL'). Not A-share or HK."],
     filing_type: Annotated[str, "Type of SEC filing: '10-K' (annual), '10-Q' (quarterly), or '8-K' (event-driven)"] = "10-K",
     include_financials: Annotated[bool, "Include financial statements and key metrics (10-K/10-Q only)"] = True,
     include_earnings_call: Annotated[bool, "Include matching earnings call transcript (10-K/10-Q only)"] = True,
@@ -327,7 +327,8 @@ async def get_sec_filing(
     Rule of thumb: Choose strategically based on the goal and current date.
 
     Args:
-        symbol: Stock ticker symbol (e.g., "AAPL", "MSFT", "NVDA")
+        symbol: US-listed ticker only (e.g. "AAPL"). Not for A-share or HK
+            listings — those are not SEC issuers.
         filing_type: Type of SEC filing:
             - "10-K": Annual report (comprehensive, audited, full year)
             - "10-Q": Quarterly report (more recent, unaudited, interim)

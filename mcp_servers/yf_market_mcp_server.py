@@ -52,7 +52,8 @@ def search_tickers(query: str, max_results: int = 8, news_count: int = 5) -> dic
     company name to symbols or scan headlines.
 
     Args:
-        query: Keyword — company name or symbol, e.g. "apple", "AAPL".
+        query: Company name or Yahoo symbol, e.g. "apple", "腾讯", "0700.HK",
+            "^HSI". Results are Yahoo tickers (caret indices, .HK, .SS).
         max_results: Max ticker quotes to return (default 8).
         news_count: Max news articles to return (default 5).
 
@@ -80,11 +81,11 @@ def search_tickers(query: str, max_results: int = 8, news_count: int = 5) -> dic
 def get_market_status(market: str = "US") -> dict:
     """Current status and index summary for a market. Use to check whether a
     market is open and read headline index moves.
-    Markets: US, GB, ASIA, EUROPE, RATES, COMMODITIES, CURRENCIES,
-    CRYPTOCURRENCIES.
+    Yahoo market codes only (not "cn"/"hk"): US, GB, ASIA, EUROPE, RATES,
+    COMMODITIES, CURRENCIES, CRYPTOCURRENCIES.
 
     Args:
-        market: Market code (see above; default "US").
+        market: Yahoo market code (see above; default "US"). Not region="hk".
 
     Returns:
         dict: {market, count, data, source}. data is {status, summary}, both

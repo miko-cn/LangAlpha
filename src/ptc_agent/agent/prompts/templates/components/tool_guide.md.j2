@@ -59,6 +59,28 @@ Call these directly for quick data retrieval. No complex post-processing — jus
 
 **When to use**: Quick lookups, answering direct questions, gathering data for a report.
 
+### Ticker grammar
+
+Spell the ticker for the venue **and** the tool family. These stacks do not share
+one Yahoo dialect.
+
+| Venue | Direct quote / daily / overview / watch (local CN/HK vendors) | Yahoo / FMP MCP |
+|---|---|---|
+| US stock | `AAPL` | `AAPL` |
+| US index | `^GSPC` `^DJI` `^IXIC` | same caret |
+| A-share stock | `600519.SS` / `000001.SZ` (Shanghai is `.SS`, never `.SH`) | same suffix |
+| A-share index | `000001.SS` / `399001.SZ` / `000300.SS` | same suffix — not `^SSEC` |
+| HK stock | `0700.HK` | `0700.HK` |
+| HK index | `800000.HK` (Hang Seng) | `^HSI` (Yahoo caret) |
+
+Do **not** pass `^HSI` / `^SSEC` to the direct quote/price/overview tools — those
+names are Yahoo-only and will miss the local CN/HK vendors. `region="hk"` /
+`region="cn"` already use exchange-suffix baskets. JP/UK/EU defaults still use
+Yahoo caret names.
+
+US-only: options, SEC filings, market movers, short interest, FMP screener,
+US sector breakdown.
+
 ## MCP Tools (via Python)
 
 These servers expose raw data APIs for complex work — batch processing, modeling, calculations, and sophisticated analysis. Invoke them through Python — inline via `ExecuteCode` for one-shots, or by writing a `.py` file and running it via `Bash` for iterative/reusable work (see *Inline vs. file-based execution* below):

@@ -36,11 +36,14 @@ async def get_daily_prices(
     limit: Optional[int] = None,
 ) -> Tuple[Union[List[Dict[str, Any]], str], Dict[str, Any]]:
     """
-    Historical daily OHLCV bars for one stock — for price history, trends, returns,
-    and charting.
+    Historical daily OHLCV bars for one stock or index — price history, trends,
+    returns, and charting. CN/HK bars come from local vendors: use that venue's
+    ticker, not a Yahoo caret name.
 
     Args:
-        symbol: US "AAPL", A-share "600519.SS", HK "0700.HK".
+        symbol: US stock "AAPL"; US index "^GSPC". A-share stock "600519.SS" or
+            index "000001.SS" (Shanghai is .SS, never .SH). HK stock "0700.HK";
+            HK index "800000.HK" (Hang Seng) — not "^HSI".
         start_date: Start "YYYY-MM-DD" (optional).
         end_date: End "YYYY-MM-DD" (optional).
         limit: Max records when no date range is given (default 60 trading days).
@@ -58,10 +61,12 @@ async def get_company_overview(
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Full investment snapshot for one company — quote, financial health, analyst
-    consensus, earnings, and revenue segmentation.
+    consensus, earnings, and revenue segmentation. Companies only, not indices.
+    Fundamentals are from global vendors and are thinner for A-share/HK than US.
 
     Args:
-        symbol: US "AAPL", A-share "600519.SS", HK "0700.HK".
+        symbol: US "AAPL", A-share "600519.SS" (Shanghai .SS, never .SH),
+            HK "0700.HK".
     """
     content, artifact = await fetch_company_overview(symbol, config=config)
     return content, artifact
@@ -76,10 +81,15 @@ async def get_quote(
     """
     Real-time quotes only — cheap and fast. Call it freely whenever you need the
     current price, including a re-check right before stating a price in your answer.
+    CN/HK quotes come from local vendors: pass that venue's ticker, not a Yahoo
+    caret name.
 
     Args:
-        symbols: Up to 20 tickers — US "NVDA", A-share "600519.SS", HK "0700.HK".
-        asset_type: "stocks" (default) or "indices" for index symbols like "^GSPC".
+        symbols: Up to 20 market-native tickers. US stock "NVDA"; US index
+            "^GSPC". A-share stock "600519.SS" or index "000001.SS" (Shanghai
+            .SS, never .SH). HK stock "0700.HK"; HK index "800000.HK" (Hang Seng)
+            — not "^HSI".
+        asset_type: "stocks" or "indices"; must match the symbols.
     """
     content, artifact = await fetch_quote(symbols, asset_type=asset_type, config=config)
     return content, artifact
@@ -100,7 +110,10 @@ async def get_market_overview(
     Args:
         region: "us" (default), "cn", "hk", "jp", "uk", "eu", or "global".
             Sector breakdown is US only.
-        indices: Explicit index symbols overriding the region basket (e.g. ["^VIX"]).
+        indices: Override the region basket. US "^GSPC"/"^VIX"; A-share
+            "000001.SS"; HK "800000.HK" (Hang Seng, not "^HSI"). HK/CN defaults
+            already use exchange-suffix codes; JP/UK/EU defaults still use
+            Yahoo caret names.
         date: Snapshot date in YYYY-MM-DD format (default: latest trading day).
             A non-trading date falls back to the prior trading day.
     """
@@ -134,7 +147,8 @@ async def screen_stocks(
     """
     Screen/discover stocks by fundamental and market filters — market cap, price,
     volume, beta, dividend, sector, industry, exchange, country, and type — via the
-    FMP company screener.
+    FMP company screener. US/global FMP coverage; not a local A-share or HK
+    exchange screener.
 
     Args:
         market_cap_more_than: Minimum market capitalization (e.g. 1e9 for $1B).
@@ -149,8 +163,9 @@ async def screen_stocks(
         dividend_lower_than: Maximum dividend yield.
         sector: e.g. "Technology", "Healthcare", "Financial Services".
         industry: e.g. "Software", "Biotechnology".
-        exchange: e.g. "NASDAQ", "NYSE", "AMEX".
-        country: e.g. "US", "CN", "GB".
+        exchange: FMP exchange, e.g. "NASDAQ", "NYSE", "AMEX" — not SSE/SZSE/HKEX.
+        country: FMP country field, e.g. "US", "CN", "GB". "CN" is not the local
+            A-share universe.
         is_etf: ETFs only (True) or exclude ETFs (False).
         is_fund: Funds only (True) or exclude funds (False).
         is_actively_trading: Restrict to actively trading names.
@@ -192,11 +207,11 @@ async def get_options_chain(
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Options contracts for an underlying with current session pricing, filterable by
-    type, expiration range, and strike. US-listed options only — not for non-US
-    underlyings.
+    type, expiration range, and strike. US-listed options only — not A-share, HK,
+    or other non-US underlyings.
 
     Args:
-        underlying: Underlying ticker (e.g. "AAPL", "TSLA").
+        underlying: US-listed underlying (e.g. "AAPL", "TSLA").
         contract_type: "call" or "put" (default: both).
         expiration_date_gte: Min expiration "YYYY-MM-DD".
         expiration_date_lte: Max expiration "YYYY-MM-DD".
@@ -218,7 +233,7 @@ async def get_market_movers(
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Top US market movers — the biggest daily gainers or losers among tickers with
-    significant volume. US market only.
+    significant volume. US market only — not A-share or HK.
 
     Args:
         direction: "gainers" or "losers" (default "gainers").

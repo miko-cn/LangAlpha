@@ -35,7 +35,7 @@ logger = structlog.get_logger(__name__)
 # content-identical, but a warm sandbox would otherwise keep serving the 3.12
 # spacing indefinitely, since the manifest hashes generation inputs and the
 # interpreter is not one of them.
-MCP_CLIENT_CODEGEN_VERSION = "3"
+MCP_CLIENT_CODEGEN_VERSION = "4"
 
 # Aggregate per-execution ceiling on result_body bytes emitted BY THE GENERATED
 # CLIENT, interpolated into it. This keeps a cooperative run's trace small (per

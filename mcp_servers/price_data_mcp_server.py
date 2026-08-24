@@ -248,7 +248,8 @@ async def get_stock_data(
     accepted). start_date and end_date are required for intraday.
 
     Args:
-        symbol: Ticker — US "AAPL", HK "0700.HK", A-share "600519.SS", LSE "VOD.L".
+        symbol: FMP/Yahoo spelling — US "AAPL", HK "0700.HK", A-share
+            "600519.SS" (.SS not .SH), LSE "VOD.L". Indices: caret "^GSPC"/"^HSI".
         interval: Bar size; one of the intervals above.
         start_date: "YYYY-MM-DD" (append " HH:MM" for intraday time filtering).
         end_date: "YYYY-MM-DD" (append " HH:MM" for intraday time filtering).
@@ -280,7 +281,8 @@ async def get_asset_data(
     required for intraday.
 
     Args:
-        symbol: Stock "AAPL", commodity "GCUSD", crypto "BTCUSD", forex "EURUSD".
+        symbol: Stock: US "AAPL", HK "0700.HK", A-share "600519.SS"; commodity
+            "GCUSD"; crypto "BTCUSD"; forex "EURUSD". Indices: Yahoo caret.
         asset_type: One of stock|commodity|crypto|forex.
         interval: Bar size; see intervals above.
         from_date: "YYYY-MM-DD" (append " HH:MM" for intraday time filtering).

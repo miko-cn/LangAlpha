@@ -265,7 +265,7 @@ async def get_insider_trades(
 ) -> dict:
     """Fetch insider trading transactions and aggregate buy/sell statistics —
     detect insider buying clusters, screen unusual activity, or gauge C-suite
-    confidence.
+    confidence. US Form-4 style via FMP; A-share/HK coverage is usually empty.
 
     Args:
         symbol: Ticker — US "AAPL", HK "0700.HK", A-share "600519.SS".

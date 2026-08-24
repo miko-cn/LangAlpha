@@ -198,7 +198,8 @@ def get_stock_history(
     """Historical OHLCV price bars for one stock — charts, returns, technicals.
 
     Args:
-        ticker: Symbol — US "AAPL", HK "0700.HK", A-share "600519.SS".
+        ticker: Yahoo spelling — US "AAPL", HK "0700.HK", A-share "600519.SS"
+            (.SS not .SH). Indices: caret "^GSPC"/"^HSI".
         period: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max.
         interval: 1min|5min|15min|30min|1hour|1day|1week|1month (native
             2m|90m|5d|3mo accepted; 4hour unsupported). Intraday lookback is
@@ -254,7 +255,7 @@ def get_multiple_stocks_history(
     """Historical OHLCV bars for several stocks — compare price series.
 
     Args:
-        tickers: Symbols, e.g. ["AAPL", "MSFT", "0700.HK"].
+        tickers: Yahoo spelling, e.g. ["AAPL", "0700.HK", "600519.SS", "^HSI"].
         period: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max.
         interval: 1min|5min|15min|30min|1hour|1day|1week|1month (native
             2m|90m|5d|3mo accepted; 4hour unsupported).
@@ -320,7 +321,7 @@ def get_dividends_and_splits(ticker: str) -> dict:
     total-return, yield, and adjustment analysis.
 
     Args:
-        ticker: Symbol — US "AAPL", HK "0700.HK", A-share "600519.SS".
+        ticker: Yahoo spelling — US "AAPL", HK "0700.HK", A-share "600519.SS".
 
     Returns:
         dict: {symbol, currency, timezone, count, data, source,

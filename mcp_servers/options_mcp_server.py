@@ -127,10 +127,11 @@ async def get_options_chain(
 ) -> dict:
     """List options contracts for an underlying; use to discover/filter contracts.
 
-    Filter by call/put, expiration range, and strike range. ginlix-data only.
+    Filter by call/put, expiration range, and strike range. US-listed options
+    only — not A-share or HK. ginlix-data only.
 
     Args:
-        underlying_ticker: Underlying stock ticker, e.g. "AAPL".
+        underlying_ticker: US-listed underlying, e.g. "AAPL".
         contract_type: "call" or "put" (default: both).
         expiration_date_gte: Min expiration "YYYY-MM-DD".
         expiration_date_lte: Max expiration "YYYY-MM-DD".

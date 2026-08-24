@@ -107,6 +107,8 @@ def _get_index_name(symbol: str) -> str:
         "000300.SS": "CSI 300",
         "^HSI": "Hang Seng Index",
         "^HSCE": "Hang Seng China Enterprises",
+        "800000.HK": "Hang Seng Index",
+        "800100.HK": "Hang Seng China Enterprises",
         "^N225": "Nikkei 225",
         "^FTSE": "FTSE 100",
         "^GDAXI": "DAX",
@@ -217,11 +219,15 @@ _FOREIGN_BASKETS: Dict[str, List[str]] = {}
 for _sym, _region in CARET_INDEX_REGIONS.items():
     _FOREIGN_BASKETS.setdefault(_region, []).append(_sym)
 
+# Local HK vendors serve exchange codes, not Yahoo caret. CARET_INDEX_REGIONS
+# still routes a stray "^HSI" to hk — it must not be what we request by default.
+_FOREIGN_BASKETS["hk"] = ["800000.HK", "800100.HK"]
+
 _REGION_INDEX_BASKETS: Dict[str, List[str]] = {
     "us": ["^GSPC", "^IXIC", "^DJI", "^RUT"],
     "cn": ["000001.SS", "399001.SZ", "000300.SS"],
     **_FOREIGN_BASKETS,
-    "global": ["^GSPC", "^IXIC", "^HSI", "^N225", "^FTSE", "^GDAXI"],
+    "global": ["^GSPC", "^IXIC", "800000.HK", "^N225", "^FTSE", "^GDAXI"],
 }
 
 

@@ -781,7 +781,7 @@ class TestFetchMarketOverview:
         assert "Sector breakdown unavailable" in content
         assert "sectors" not in artifact
         # HK basket passed through
-        assert mock_snap.await_args.args[0] == ["^HSI", "^HSCE"]
+        assert mock_snap.await_args.args[0] == ["800000.HK", "800100.HK"]
 
     @pytest.mark.asyncio
     async def test_unknown_region(self):
