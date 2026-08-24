@@ -18,6 +18,16 @@ export function setTokenGetter(fn: TokenGetter) {
   _getAccessToken = fn;
 }
 
+/** Current access token for raw fetch/WS (SSE, MarketView). Null if unset. */
+export async function getAccessToken(): Promise<string | null> {
+  if (!_getAccessToken) return null;
+  try {
+    return await _getAccessToken();
+  } catch {
+    return null;
+  }
+}
+
 /** Async function that force-refreshes the session and returns a fresh token (set by AuthContext). */
 let _refreshToken: TokenGetter | null = null;
 

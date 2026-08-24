@@ -9,6 +9,8 @@ import { resetNavPanelExpansion } from '@/pages/ChatAgent/components/navExpansio
 import { resetStableNavOrder } from '@/pages/ChatAgent/hooks/useNavigationData';
 import { resetSharedWorkspaceThreads } from '@/lib/navThreadsStore';
 import { runAuthResets } from '../lib/authResets';
+import { isLocalMode, isPlatformMode } from '@/config/hostMode';
+import { LocalAuthProvider } from './LocalAuthProvider';
 
 import type {
   AuthError,
@@ -41,9 +43,7 @@ export interface AuthContextValue {
   updatePassword: (password: string) => Promise<UserResponse | void>;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
-
-import { isPlatformMode } from '@/config/hostMode';
+export const AuthContext = createContext<AuthContextValue | null>(null);
 
 const _LOCAL_DEV_USER_ID = (import.meta.env.VITE_AUTH_USER_ID as string) || 'local-dev-user';
 
@@ -77,6 +77,9 @@ const emailConfirmUrl = () => window.location.origin + '/auth/confirm';
 const passwordResetUrl = () => window.location.origin + '/reset-password';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  if (isLocalMode) {
+    return <LocalAuthProvider>{children}</LocalAuthProvider>;
+  }
   // Skip all Supabase logic in OSS mode.
   if (!isPlatformMode) {
     return <AuthContext.Provider value={_localDevValue}>{children}</AuthContext.Provider>;

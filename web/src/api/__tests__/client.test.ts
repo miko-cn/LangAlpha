@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { api, setTokenGetter, setTokenRefresher } from '../client';
+import { api, getAccessToken, setTokenGetter, setTokenRefresher } from '../client';
 
 interface InterceptorHandler<T = unknown> {
   fulfilled: (value: T) => T | Promise<T>;
@@ -9,6 +9,26 @@ interface InterceptorHandler<T = unknown> {
 interface InterceptorManager<T> {
   handlers: InterceptorHandler<T>[];
 }
+
+describe('getAccessToken', () => {
+  beforeEach(() => {
+    setTokenGetter(null as unknown as () => Promise<string | null>);
+  });
+
+  it('returns null when no getter is registered', async () => {
+    await expect(getAccessToken()).resolves.toBeNull();
+  });
+
+  it('returns the getter value', async () => {
+    setTokenGetter(() => Promise.resolve('tok'));
+    await expect(getAccessToken()).resolves.toBe('tok');
+  });
+
+  it('returns null when the getter throws', async () => {
+    setTokenGetter(() => Promise.reject(new Error('boom')));
+    await expect(getAccessToken()).resolves.toBeNull();
+  });
+});
 
 describe('setTokenGetter', () => {
   beforeEach(() => {

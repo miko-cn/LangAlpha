@@ -16,6 +16,7 @@ vi.mock('@/api/client', () => {
       patch: vi.fn(),
       defaults: { baseURL: 'http://localhost:8000' },
     },
+    getAccessToken: () => Promise.resolve(null),
   };
 });
 

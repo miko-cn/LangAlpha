@@ -2,7 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string;
-  readonly VITE_HOST_MODE?: 'oss' | 'platform';
+  readonly VITE_HOST_MODE?: 'oss' | 'platform' | 'local';
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
   readonly VITE_AUTH_USER_ID?: string;

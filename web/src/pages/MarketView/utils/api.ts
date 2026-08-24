@@ -2,7 +2,7 @@
  * MarketView API utilities
  * All backend endpoints used by the MarketView page
  */
-import { api } from '@/api/client';
+import { api, getAccessToken } from '@/api/client';
 import { supabase } from '@/lib/supabase';
 import { isIndexInstrument, normalizeIndexKey } from '@/lib/marketUtils';
 
@@ -33,20 +33,25 @@ export function getMarketDataWSUrl(market: string = 'stock', interval: string = 
  * @returns {Promise<string|null>}
  */
 export async function getWSAuthToken(): Promise<string | null> {
-  if (!supabase) return null;
-  try {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token || null;
-  } catch {
-    return null;
+  if (supabase) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      return data.session?.access_token || null;
+    } catch {
+      return null;
+    }
   }
+  return getAccessToken();
 }
 
 /** Get Bearer auth headers for raw fetch() calls (SSE streams). */
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  if (!supabase) return {};
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+  if (supabase) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+  const token = await getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

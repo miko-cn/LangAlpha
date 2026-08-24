@@ -7,7 +7,10 @@ No YAML dependency — pure os.getenv.
 
 import os
 
-# Deployment mode: "oss" (self-hosted, no auth) or "platform" (Supabase auth + quota service)
+# Deployment mode: "oss" (no auth), "local" (single username/password),
+# or "platform" (Supabase auth + quota service). local reads
+# LOCAL_AUTH_SECRET / LOCAL_AUTH_USERNAME / LOCAL_AUTH_PASSWORD_HASH at
+# request time (see src.server.auth.local) — missing values fail startup.
 HOST_MODE: str = os.getenv("HOST_MODE", "oss")
 
 # Auth / Login Service (Supabase) — credential, not a mode flag

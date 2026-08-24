@@ -10,6 +10,7 @@ describe('authErrorMessage', () => {
   describe('mapped Supabase codes → i18n keys', () => {
     const cases: Array<[string, string]> = [
       ['invalid_credentials', 'auth.errors.invalidCredentials'],
+      ['invalid_local_credentials', 'auth.errors.invalidLocalCredentials'],
       ['email_not_confirmed', 'auth.errors.emailNotConfirmed'],
       ['over_email_send_rate_limit', 'auth.errors.rateLimited'],
       ['over_request_rate_limit', 'auth.errors.rateLimited'],

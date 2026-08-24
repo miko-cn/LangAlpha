@@ -4,6 +4,7 @@ import { Mail, Link2 } from 'lucide-react';
 import { Input } from '../../components/ui/input';
 import { useTranslation, Trans } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
+import { isLocalMode } from '@/config/hostMode';
 import { authErrorMessage, type AuthErrorInfo } from '../../lib/authErrors';
 import PasswordInput from './PasswordInput';
 import PasswordStrength from './PasswordStrength';
@@ -87,9 +88,10 @@ function LoginPage() {
     resendConfirmation,
   } = useAuth();
   const [searchParams] = useSearchParams();
-  const [view, setView] = useState<LoginView>(
-    searchParams.get('mode') === 'signup' ? 'signup' : 'method'
-  );
+  const [view, setView] = useState<LoginView>(() => {
+    if (isLocalMode) return 'login';
+    return searchParams.get('mode') === 'signup' ? 'signup' : 'method';
+  });
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
@@ -260,7 +262,7 @@ function LoginPage() {
           <h1 className="login-page__title">LangAlpha</h1>
         </div>
 
-        {view === 'method' && (
+        {view === 'method' && !isLocalMode && (
           <div className="login-page__method">
             {error && <div className="login-page__error">{error.message}</div>}
             <div className="login-page__method-stack">
@@ -306,34 +308,40 @@ function LoginPage() {
         {view === 'login' && (
           <form onSubmit={handleLogin} className="login-page__form">
             <div>
-              <h2 className="login-page__view-title">{t('auth.loginTitle')}</h2>
+              <h2 className="login-page__view-title">
+                {isLocalMode ? t('auth.localLoginTitle') : t('auth.loginTitle')}
+              </h2>
             </div>
             <div className="login-page__field">
-              <label className="login-page__label">{t('common.email')}</label>
+              <label className="login-page__label">
+                {isLocalMode ? t('common.username') : t('common.email')}
+              </label>
               <Input
-                type="email"
+                type={isLocalMode ? 'text' : 'email'}
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder={t('auth.enterEmail')}
+                placeholder={isLocalMode ? t('auth.enterUsername') : t('auth.enterEmail')}
                 className="login-page__input"
                 disabled={isSubmitting}
-                autoComplete="email"
+                autoComplete={isLocalMode ? 'username' : 'email'}
                 required
               />
             </div>
             <div className="login-page__field">
               <div className="login-page__label-row">
                 <label className="login-page__label">{t('common.password')}</label>
-                <button
-                  type="button"
-                  className="login-page__forgot"
-                  onClick={() => {
-                    setForgotEmail((cur) => cur || loginEmail);
-                    goToView('forgot-password');
-                  }}
-                >
-                  {t('auth.forgotPassword')}
-                </button>
+                {!isLocalMode && (
+                  <button
+                    type="button"
+                    className="login-page__forgot"
+                    onClick={() => {
+                      setForgotEmail((cur) => cur || loginEmail);
+                      goToView('forgot-password');
+                    }}
+                  >
+                    {t('auth.forgotPassword')}
+                  </button>
+                )}
               </div>
               <PasswordInput
                 value={loginPassword}
@@ -348,7 +356,7 @@ function LoginPage() {
             {error && (
               <div className="login-page__error">
                 {error.message}
-                {error.code === 'email_not_confirmed' && (
+                {!isLocalMode && error.code === 'email_not_confirmed' && (
                   <button
                     type="button"
                     className="login-page__inline-resend"
@@ -358,7 +366,7 @@ function LoginPage() {
                     {t('auth.resendConfirmationCta')}
                   </button>
                 )}
-                {error.code === 'invalid_credentials' && (
+                {!isLocalMode && error.code === 'invalid_credentials' && (
                   /* Shown for every failed login (Supabase returns the same
                      code whether the password is wrong or the account is
                      OAuth-only, to prevent enumeration), so the hint must
@@ -383,14 +391,18 @@ function LoginPage() {
             >
               {isSubmitting ? t('auth.loggingIn') : t('auth.login')}
             </button>
-            <SwitchPrompt i18nKey="auth.noAccount" onSwitch={() => goToView('signup')} />
-            <button type="button" className="login-page__back" onClick={() => goToView('method')}>
-              {t('auth.backToOptions')}
-            </button>
+            {!isLocalMode && (
+              <>
+                <SwitchPrompt i18nKey="auth.noAccount" onSwitch={() => goToView('signup')} />
+                <button type="button" className="login-page__back" onClick={() => goToView('method')}>
+                  {t('auth.backToOptions')}
+                </button>
+              </>
+            )}
           </form>
         )}
 
-        {view === 'signup' && (
+        {view === 'signup' && !isLocalMode && (
           <form onSubmit={handleSignup} className="login-page__form">
             <div>
               <h2 className="login-page__view-title">{t('auth.signupTitle')}</h2>
@@ -485,7 +497,7 @@ function LoginPage() {
           </form>
         )}
 
-        {view === 'magic-link' && (
+        {view === 'magic-link' && !isLocalMode && (
           <EmailOnlyView
             title="auth.magicTitle"
             subtitle="auth.magicSubtitle"
@@ -501,7 +513,7 @@ function LoginPage() {
           />
         )}
 
-        {view === 'forgot-password' && (
+        {view === 'forgot-password' && !isLocalMode && (
           <EmailOnlyView
             title="auth.forgotTitle"
             subtitle="auth.forgotSubtitle"
@@ -516,7 +528,7 @@ function LoginPage() {
           />
         )}
 
-        {view === 'check-inbox' && (
+        {view === 'check-inbox' && !isLocalMode && (
           <CheckInbox
             kind={sentKind}
             email={sentEmail}

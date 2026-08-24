@@ -7,6 +7,7 @@ import type { TFunction } from 'i18next';
  */
 const CODE_TO_KEY: Record<string, string> = {
   invalid_credentials: 'auth.errors.invalidCredentials',
+  invalid_local_credentials: 'auth.errors.invalidLocalCredentials',
   email_not_confirmed: 'auth.errors.emailNotConfirmed',
   over_email_send_rate_limit: 'auth.errors.rateLimited',
   over_request_rate_limit: 'auth.errors.rateLimited',

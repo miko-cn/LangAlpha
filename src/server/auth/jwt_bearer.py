@@ -5,17 +5,17 @@ Decodes asymmetric JWTs (RS256/ES256) using JWKS public keys fetched from the
 Supabase project endpoint. Returns the user UUID from the `sub` claim and
 optionally the ``auth_provider`` from ``app_metadata.provider``.
 
-When ``SUPABASE_URL`` is **not set**, authentication is bypassed and all
-requests are attributed to a default local-dev identity.  This lets
-contributors run the stack locally without a Supabase project.
+``HOST_MODE=oss`` bypasses auth (static ``AUTH_USER_ID``). ``HOST_MODE=local``
+verifies an HS256 JWT issued by ``/api/v1/auth/local/login``. ``platform``
+uses Supabase JWKS.
 """
 
 from dataclasses import dataclass
 
 import jwt
-from jwt import PyJWKClient
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt import PyJWKClient
 
 from src.config.settings import HOST_MODE, LOCAL_DEV_USER_ID, SUPABASE_URL
 
@@ -42,7 +42,17 @@ def _get_jwks_client() -> PyJWKClient:
 
 
 def _decode_token(token: str) -> AuthInfo:
-    """Decode a Supabase JWT and return user UUID + auth provider."""
+    """Decode the mode-appropriate JWT and return user id + auth provider."""
+    if HOST_MODE == "local":
+        from src.server.auth.local import decode_local_access_token
+
+        try:
+            return AuthInfo(user_id=decode_local_access_token(token))
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
     try:
         client = _get_jwks_client()
         signing_key = client.get_signing_key_from_jwt(token)

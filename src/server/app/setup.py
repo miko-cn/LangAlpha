@@ -190,8 +190,14 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "HOST_MODE=oss: authentication is disabled. "
             "All endpoints are accessible without a token. "
-            "Set HOST_MODE=platform for production use."
+            "Set HOST_MODE=local (single-account login) or "
+            "HOST_MODE=platform for production use."
         )
+    elif HOST_MODE == "local":
+        from src.server.auth.local import require_local_auth_config
+
+        require_local_auth_config()
+        logger.info("HOST_MODE=local: username/password login required")
     if os.getenv("BYOK_ENCRYPTION_KEY") == "langalpha-local-dev-encryption-key":
         logger.warning(
             "BYOK_ENCRYPTION_KEY is set to the default value from the repository. "
@@ -235,10 +241,11 @@ async def lifespan(app: FastAPI):
     # Auto-provision local dev user when Supabase auth is disabled
     from src.config.settings import HOST_MODE, LOCAL_DEV_USER_ID
 
-    if HOST_MODE == "oss":
+    if HOST_MODE in ("oss", "local"):
         from src.server.database.user import get_user, create_user_from_auth
 
-        # Only provision if name is missing or user doesn't exist
+        # Only provision if name is missing or user doesn't exist.
+        # local still requires login; this just keeps AUTH_USER_ID in `users`.
         existing = await get_user(LOCAL_DEV_USER_ID)
         if not existing or not existing.get("name"):
             await create_user_from_auth(
@@ -1004,6 +1011,7 @@ from src.server.app.market_data import router as market_data_router
 from src.server.app.bars import router as bars_router
 from src.server.app.user_events import router as user_events_router
 from src.server.app.users import router as users_router
+from src.server.app.local_auth import router as local_auth_router
 from src.server.app.features import router as features_router
 from src.server.app.watchlist import router as watchlist_router
 from src.server.app.portfolio import router as portfolio_router
@@ -1063,6 +1071,9 @@ app.include_router(
     bars_router
 )  # /api/v1/market-data/bars/* - Protocol-native progressive bars
 app.include_router(users_router)  # /api/v1/users/* - User management
+app.include_router(
+    local_auth_router
+)  # /api/v1/auth/local/login — HOST_MODE=local only (404 otherwise)
 app.include_router(
     user_events_router
 )  # /api/v1/users/me/thread-events - Thread lifecycle SSE feed
